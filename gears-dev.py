@@ -16,10 +16,14 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+
+2014-04-20: jw@suse.de 0.2  Option --accuracy=0 for automatic added.
 '''
 import inkex
 import simplestyle, sys
 from math import *
+
+__version__ = '0.2'
 
 def linspace(a,b,n):
 	return [a+x*(b-a)/(n-1) for x in range(0,n)]
@@ -75,8 +79,8 @@ class Gears(inkex.Effect):
 						help="Units 1=px (default unless --metric), 3.5433070866=mm")
 		self.OptionParser.add_option("-A", "--accuracy",
 						action="store", type="int",
-						dest="accuracy", default=20,
-						help="Accuracy of involute: best: 20(default), medium 10, low: 5; good acuracy is important with a low tooth count")
+						dest="accuracy", default=0,
+						help="Accuracy of involute: automatic: 5..20 (default), best: 20(default), medium 10, low: 5; good acuracy is important with a low tooth count")
 
 
 		self.OptionParser.add_option("", "--mount-hole",
@@ -124,9 +128,16 @@ class Gears(inkex.Effect):
 		accuracy1 = 20 # Number of points of the involute curve
 		accuracy2 = 9  # Number of points on circular parts
 		units = self.options.units
+		teeth = self.options.teeth 
 		metric_module = self.options.metric_module
 		if self.options.accuracy is not None:
-			accuracy1 = self.options.accuracy
+                        if self.options.accuracy == 0:  
+                            # automatic
+                            if teeth < 10:   accuracy1 = 20
+                            elif teeth < 30: accuracy1 = 12
+                            else:            accuracy1 = 6
+			else:
+                            accuracy1 = self.options.accuracy
 			accuracy2 = int(self.options.accuracy)/2-1
 			if accuracy2 < 3: accuracy2 = 3
 
@@ -136,7 +147,6 @@ class Gears(inkex.Effect):
                         else:
                                 units = 1
 		
-		teeth = self.options.teeth 
                 if metric_module:
                         # optsions.pitc is metric modules, we need circular pitch
 		        pitch = self.options.pitch * units * pi
