@@ -7,7 +7,7 @@
    	<param name='active-tab' type="notebook">
    		<page name='Gear' _gui-text='Gears'>
 			<param name="teeth"     type="int"     min="5"    max="1200"    _gui-text="Number of teeth (5..1200)">24</param>
-			<param name="pitch"     type="float"   min="0.0"  max="10000.0"	precision="5"	_gui-text="Circular pitch">20.0</param>
+			<param name="pitch"     type="float"   min="0.0"  max="10000.0"	precision="5"	_gui-text="Circular pitch / Metric Module">20.0</param>
 			<param name="metric"    type="boolean" _gui-text="Metric Module instead of CP">false</param>
 			<param name="angle"     type="float"   min="5.0"  max="45.0"   	precision="5"	_gui-text="Pressure angle (5..45)">20.0</param>
 			<param name="clearance" type="float"   _gui-text="Clearance" min="0" max="100" precision="5">0</param>
@@ -25,7 +25,9 @@
 			<param name="mount_radius"		type="float" min="0"    max="1000"	precision="5"	_gui-text="Mount support diameter">15</param>
 			<param name="holes-count"		type="int"   min="0"    max="100"	_gui-text="Number of holes">3</param>
 			<param name="holes-border"		type="float" min="1"    max="1000"	precision="5"	_gui-text="Holes border width">5</param>
+                        <!-- unused parameter
 			<param name="holes-rounding"	type="float" min="0"    max="1000"	precision="5"	_gui-text="Holes rounding">5</param>
+                        -->
 			<param name="centercross" type="boolean" _gui-text="Draw center cross">false</param>
 			<param name="pitchcircle" type="boolean" _gui-text="Draw pitch circle (for meshing)">false</param>
 			<param name="accuracy" type="enum" _gui-text="Tooth Accuracy:">
