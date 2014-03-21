@@ -26,7 +26,7 @@ import inkex
 import simplestyle, sys
 from math import *
 
-__version__ = '0.2'
+__version__ = '0.21'
 
 def linspace(a,b,n):
 	return [a+x*(b-a)/(n-1) for x in range(0,n)]
@@ -56,6 +56,7 @@ def draw_SVG_circle(r, cx, cy, fill, strokewidth, name, parent):
                     'r':str(r),
                     inkex.addNS('label','inkscape'):name}
     circle = inkex.etree.SubElement(parent, inkex.addNS('circle','svg'), circ_attribs )
+    
 class Gears(inkex.Effect):
 	def __init__(self):
 		inkex.Effect.__init__(self)
@@ -85,11 +86,23 @@ class Gears(inkex.Effect):
 						dest="accuracy", default=0,
 						help="Accuracy of involute: automatic: 5..20 (default), best: 20(default), medium 10, low: 5; good acuracy is important with a low tooth count")
 
+                # Clearance: Radial distance between top of tooth on one gear to bottom of gap on another.
+                self.OptionParser.add_option("", "--clearance",
+						action="store", type="float",
+						dest="clearance", default=0.0,
+						help="Clearance between bottom of gap of this gear and top of tooth of another")
+
+                
 
 		self.OptionParser.add_option("", "--mount-hole",
 						action="store", type="float",
 						dest="mount_hole", default=5,
 						help="Mount hole diameter")
+
+		self.OptionParser.add_option("", "--mount_radius",
+						action="store", type="float",
+						dest="mount_radius", default=15,
+						help="mount support radius")
 
 		self.OptionParser.add_option("", "--holes-count",
 						action="store", type="int",
@@ -119,13 +132,6 @@ class Gears(inkex.Effect):
 						action="store", type="inkbool",
 						dest="pitchcircle", default=False,
 						help="Draw pitch circle (for mating)")
-						
-		self.OptionParser.add_option("", "--clearance",
-						action="store", type="float",
-						dest="clearance", default=0.0,
-						help="Clearance between bottom of gap of this gear and top of tooth of another")
-
-		# Clearance: Radial distance between top of tooth on one gear to bottom of gap on another.
 
 	def effect(self):
 		accuracy1 = 20 # Number of points of the involute curve
@@ -158,6 +164,7 @@ class Gears(inkex.Effect):
 		angle = self.options.angle # Angle of tangent to tooth at circular pitch wrt radial line.
 
 		mount_hole = self.options.mount_hole * units
+		mount_radius = self.options.mount_radius * units
 
 		holes_count = self.options.holes_count
 		holes_rounding = self.options.holes_rounding * units
@@ -249,21 +256,22 @@ class Gears(inkex.Effect):
 
 		# Holes
 		holes = ''
-		if holes_border == 0 and holes_count > 0 :
-			inkex.errormsg(_("Holes border width should be more than 0!")+"\n")
-			return		
-		r_inner, r_outer = mount_hole/2 + holes_border, root_radius - holes_border
+##		if holes_border == 0 and holes_count > 0 :
+##			inkex.errormsg(_("Holes border width should be more than 0!")+"\n")
+##			return		
+		#r_inner  = mount_hole/2 + holes_border # now mount_radius
+		r_outer = root_radius - holes_border
 		for i in range(holes_count):
 			points = []
 			start_a, end_a = i*2*pi/holes_count, (i+1)*2*pi/holes_count
-			a = asin(holes_border/r_inner/2)
-			points += [ point_on_circle(r_inner,start_a+a), point_on_circle(r_inner,end_a-a)]
+			a = asin(holes_border/mount_radius/2)
+			points += [ point_on_circle(mount_radius,start_a+a), point_on_circle(mount_radius,end_a-a)]
 			a = asin(holes_border/r_outer/2)
 			points += [point_on_circle(r_outer,end_a-a), point_on_circle(r_outer,start_a+a) ]
 
 			path += (
 					"M %f,%f" % points[0] +
-					"A  %f,%f %s %s %s %f,%f" % tuple((r_inner, r_inner, 0, 0 if holes_count!=1 else 1, 1 ) + points[1]) +
+					"A  %f,%f %s %s %s %f,%f" % tuple((mount_radius, mount_radius, 0, 0 if holes_count!=1 else 1, 1 ) + points[1]) +
 					"L %f,%f" % points[2] +
 					"A  %f,%f %s %s %s %f,%f" % tuple((r_outer, r_outer, 0, 0 if holes_count!=1 else 1, 0 ) + points[3]) +
 					"Z"
@@ -307,3 +315,24 @@ class Gears(inkex.Effect):
 if __name__ == '__main__':
 	e = Gears()
 	e.affect()
+
+# changes
+# in .inx - prevent 0 for border width
+# in .inx - # add help tab
+# add option for mount radius - current design had inner edges overlapping when using wide hole borders
+
+#bugs
+# holes rounding currently is not used
+
+# Suggestions:
+
+# - if user could select between CP or outer radius. I think this would make it easier to use.
+#   User cannot currently tell how big dia will finally be.
+#   (Could also add annotation checkbox which could add text showing this and other info.)
+#   So add checkbox for CP, or outer radius, and value for radius. Then use appropriate one to calculate other.
+
+# - I think it would be useful to add checkbox to draw a second gear - properly meshing with first at upper right
+#   (mesh with first tooth top right)
+#   This would allow user to see what clearance was doing and pressure angle
+
+# in use user woudl have preview on - see text annotations, and meshing gear. Then turn off these when creating.
