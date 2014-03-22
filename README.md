@@ -20,3 +20,6 @@ Windows:
 
 Mac OS X: 
 *  /Applications/Inkscape.app/Contents/Resources/extensions/. 
+
+
+

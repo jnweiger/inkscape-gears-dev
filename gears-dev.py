@@ -21,12 +21,14 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 2014-04-20: jw@suse.de 0.2  Option --accuracy=0 for automatic added.
+2014-04-21: sent upstream: https://bugs.launchpad.net/inkscape/+bug/1295641
+2014-04-21: jw@suse.de 0.3  Fixed center of rotation for gears with odd number of teeth.
 '''
 import inkex
-import simplestyle, sys
+import simplestyle, sys, os
 from math import *
 
-__version__ = '0.21'
+__version__ = '0.3'
 
 def linspace(a,b,n):
 	return [a+x*(b-a)/(n-1) for x in range(0,n)]
@@ -40,6 +42,20 @@ def point_on_circle(radius, angle):
 	y = radius * sin(angle)
 	return (x, y)
 
+def points_to_bbox(p):
+        llx = urx = p[0][0]
+        lly = ury = p[0][1]
+        for x in p[1:]:
+          if   x[0] < llx: llx = x[0]
+          elif x[0] > urx: urx = x[0]
+          if   x[1] < lly: lly = x[1]
+          elif x[1] > ury: ury = x[1]
+        return (llx, lly, urx, ury)
+
+def points_to_bbox_center(p):
+        bbox = points_to_bbox(p)
+        return ((bbox[0]+bbox[2])/2., (bbox[1]+bbox[3])/2.)
+                
 def points_to_svgd(p):
 	f = p[0]
 	p = p[1:]
@@ -60,6 +76,11 @@ def draw_SVG_circle(r, cx, cy, fill, strokewidth, name, parent):
 class Gears(inkex.Effect):
 	def __init__(self):
 		inkex.Effect.__init__(self)
+                try:
+                  self.tty = open("/dev/tty", 'w')
+                except:
+                  self.tty = open(os.devnull, 'w')  # '/dev/null' for POSIX, 'nul' for Windows.
+                # print >>self.tty, "gears-dev " + __version__
 		self.OptionParser.add_option("-t", "--teeth",
 						action="store", type="int",
 						dest="teeth", default=24,
@@ -189,7 +210,7 @@ class Gears(inkex.Effect):
                 # here is how to use optiongroup
 		# if self.options.metric_or_pitch == 'useCP':
                 if metric_module:
-                        # optsions.pitc is metric modules, we need circular pitch
+                        # options.pitch is metric modules, we need circular pitch
 		        pitch = self.options.pitch * units * pi
                 else:
 		        pitch = self.options.pitch * units
@@ -285,6 +306,8 @@ class Gears(inkex.Effect):
 			points.extend( p_tmp )
 
 		path = points_to_svgd( points )
+		bbox_center = points_to_bbox_center( points )
+                # print >>self.tty, bbox_center
 
 		# Holes
 		holes = ''
@@ -298,7 +321,11 @@ class Gears(inkex.Effect):
 			start_a, end_a = i*2*pi/holes_count, (i+1)*2*pi/holes_count
 			a = asin(holes_border/mount_radius/2)
 			points += [ point_on_circle(mount_radius,start_a+a), point_on_circle(mount_radius,end_a-a)]
-			a = asin(holes_border/r_outer/2)
+                        try:
+			    a = asin(holes_border/r_outer/2)
+                        except:
+                            print >> sys.stderr, "error: Holes border width is too large:", holes_border/units, "max=", r_outer*2/units
+                            
 			points += [point_on_circle(r_outer,end_a-a), point_on_circle(r_outer,start_a+a) ]
 
 			path += (
@@ -322,6 +349,8 @@ class Gears(inkex.Effect):
 		#  Translate group, Rotate path.
 		t = 'translate(' + str( self.view_center[0] ) + ',' + str( self.view_center[1] ) + ')'
 		g_attribs = {inkex.addNS('label','inkscape'):'Gear' + str( teeth ),
+                                inkex.addNS('transform-center-x','inkscape'): str(-bbox_center[0]),
+                                inkex.addNS('transform-center-y','inkscape'): str(-bbox_center[1]),
 				'transform':t, 
 				'info':'N:'+str(teeth)+'; Pitch:'+ str(pitch) + '; Pressure Angle: '+str(angle) }
 		# add the group to the current layer
