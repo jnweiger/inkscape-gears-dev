@@ -64,6 +64,10 @@ class Gears(inkex.Effect):
 						action="store", type="int",
 						dest="teeth", default=24,
 						help="Number of teeth")
+		self.OptionParser.add_option("", "--metric_or_pitch",
+                                                action="store", type="string", 
+                                                dest="metric_or_pitch", default='useCP',
+                                                help="Traditional or Metric")
 		self.OptionParser.add_option("-p", "--pitch",
 						action="store", type="float",
 						dest="pitch", default=20.0,
@@ -91,7 +95,10 @@ class Gears(inkex.Effect):
 						action="store", type="float",
 						dest="clearance", default=0.0,
 						help="Clearance between bottom of gap of this gear and top of tooth of another")
-
+                self.OptionParser.add_option("", "--annotation",
+						action="store", type="inkbool", 
+						dest="annotation", default=False,
+						help="Draw annotation text")
                 
 
 		self.OptionParser.add_option("", "--mount-hole",
@@ -132,6 +139,18 @@ class Gears(inkex.Effect):
 						action="store", type="inkbool",
 						dest="pitchcircle", default=False,
 						help="Draw pitch circle (for mating)")
+        def add_text(self, node, text, position, text_height=12):
+                txt_style = {'font-size': '%dpx' % text_height, 'font-style':'normal', 'font-weight': 'normal',
+                             'fill': '#000000', 'font-family': 'Bitstream Vera Sans,sans-serif',
+                             'text-anchor': 'middle', 'text-align': 'center'}
+                txt_attribs = {inkex.addNS('label','inkscape'): 'Annotation',
+                               'style': simplestyle.formatStyle(txt_style),
+                               'x': str(position[0]),
+                               'y': str((position[1] + text_height) * 1.2)
+                               }
+                txt = inkex.etree.SubElement(node, inkex.addNS('text','svg'), txt_attribs)
+                txt.text = text
+                
 
 	def effect(self):
 		accuracy1 = 20 # Number of points of the involute curve
@@ -155,7 +174,8 @@ class Gears(inkex.Effect):
                                 units = 3.5433070866
                         else:
                                 units = 1
-		
+                # here is how to use optiongroup
+		# if self.options.metric_or_pitch == 'useCP':
                 if metric_module:
                         # optsions.pitc is metric modules, we need circular pitch
 		        pitch = self.options.pitch * units * pi
@@ -284,7 +304,6 @@ class Gears(inkex.Effect):
 				"M %f,%f" % (0,r) +
 				"A  %f,%f %s %s %s %f,%f" % (r,r, 0,0,0, 0,-r) +
 				"A  %f,%f %s %s %s %f,%f" % (r,r, 0,0,0, 0,r) 
-				
 				)
 		
 		# Embed gear in group to make animation easier:
@@ -293,38 +312,51 @@ class Gears(inkex.Effect):
 		g_attribs = {inkex.addNS('label','inkscape'):'Gear' + str( teeth ),
 				'transform':t, 
 				'info':'N:'+str(teeth)+'; Pitch:'+ str(pitch) + '; Pressure Angle: '+str(angle) }
-		g = inkex.etree.SubElement(self.current_layer, 'g', g_attribs)
+		# add the group to the current layer
+		g = inkex.etree.SubElement(self.current_layer, 'g', g_attribs )
 
 		# Create SVG Path for gear
 		style = { 'stroke': '#000000', 'fill': 'none' }
-		gear_attribs = {'style':simplestyle.formatStyle(style), 'd':path}
+		gear_attribs = {'style':simplestyle.formatStyle(style), 'd':path }
 		gear = inkex.etree.SubElement(g, inkex.addNS('path','svg'), gear_attribs )
 
 		# Add center
-		if (centercross):
-			style = { 'stroke': '#000000', 'fill': 'none', 'stroke-width':0.1 }
+		if centercross:
+			style = { 'stroke': '#F6921E', 'fill': 'none', 'stroke-width':0.1 }
 			cs = str(pitch/3) # centercross size
 			d = 'M-'+cs+',0L'+cs+',0M0,-'+cs+'L0,'+cs 
 			center_attribs = {inkex.addNS('label','inkscape'):'Center cross','style':simplestyle.formatStyle(style), 'd':d} #'M-10,0L10,0M0,-10L0,10'}
-			center = inkex.etree.SubElement(g, inkex.addNS('path','svg'),center_attribs)
+			center = inkex.etree.SubElement(g, inkex.addNS('path','svg'),center_attribs )
 
 		# Add pitch circle (for mating)
-		if (pitchcircle):
-			draw_SVG_circle(pitch_radius,0,0, 'none', 0.1, 'Pitch circle',g)
+		if pitchcircle:
+			draw_SVG_circle(pitch_radius,0,0, 'none', 0.1, 'Pitch circle', g )
+
+                # Add Annotation
+                if self.options.annotation:
+                        notes =['Pitch: '+ str(pitch), 'Pressure Angle: '+str(angle)] # e.g.
+                        y = outer_radius
+                        text_height = 22
+                        for n in notes:
+                                self.add_text(g, n, [0,y], text_height)
+                                y += text_height * 1.2
 
 if __name__ == '__main__':
 	e = Gears()
 	e.affect()
 
 # changes
-# in .inx - prevent 0 for border width
-# in .inx - # add help tab
-# add option for mount radius - current design had inner edges overlapping when using wide hole borders
+# added Annotation
+# added method showing options groups in UI (radio buttons)
 
 #bugs
 # holes rounding currently is not used
 
 # Suggestions:
+# - add more useful annotations
+# - change UI so that more typical values can be defined for gear constructoin.
+
+
 
 # - if user could select between CP or outer radius. I think this would make it easier to use.
 #   User cannot currently tell how big dia will finally be.
@@ -335,4 +367,4 @@ if __name__ == '__main__':
 #   (mesh with first tooth top right)
 #   This would allow user to see what clearance was doing and pressure angle
 
-# in use user woudl have preview on - see text annotations, and meshing gear. Then turn off these when creating.
+# in use: user would have preview on - see text annotations, and meshing gear. Then turn off these when creating.
