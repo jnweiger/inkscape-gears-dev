@@ -141,7 +141,7 @@ class Gears(inkex.Effect):
 						help="Draw pitch circle (for mating)")
         def add_text(self, node, text, position, text_height=12):
                 txt_style = {'font-size': '%dpx' % text_height, 'font-style':'normal', 'font-weight': 'normal',
-                             'fill': '#000000', 'font-family': 'Bitstream Vera Sans,sans-serif',
+                             'fill': '#F6921E', 'font-family': 'Bitstream Vera Sans,sans-serif',
                              'text-anchor': 'middle', 'text-align': 'center'}
                 txt_attribs = {inkex.addNS('label','inkscape'): 'Annotation',
                                'style': simplestyle.formatStyle(txt_style),
@@ -322,7 +322,7 @@ class Gears(inkex.Effect):
 
 		# Add center
 		if centercross:
-			style = { 'stroke': '#F6921E', 'fill': 'none', 'stroke-width':0.1 }
+			style = { 'stroke': '#000000', 'fill': 'none', 'stroke-width':0.1 }
 			cs = str(pitch/3) # centercross size
 			d = 'M-'+cs+',0L'+cs+',0M0,-'+cs+'L0,'+cs 
 			center_attribs = {inkex.addNS('label','inkscape'):'Center cross','style':simplestyle.formatStyle(style), 'd':d} #'M-10,0L10,0M0,-10L0,10'}

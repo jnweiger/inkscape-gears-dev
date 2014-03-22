@@ -52,18 +52,22 @@
 		</page>
 		<page name="Usage" _gui-text="Usage">
 			<_param name="gearuse" type="description" xml:space="preserve">Gears:
-			
-The apparent diameter changes based on the number of teeth and the Circular Pitch/Module.
-Inches: Circular Pitch is the increment of the Pitch Circle circumference per tooth in inches.
-Metric: Module is the Teeth per millimetre of the Pitch Circle Diameter.
+Essential to the correct meshing of gears is the notion that the size of the teeth on each gear must be the same.
+This is why Circular Pitch(inches)or Module (metric) is used to define gears, rather than say radius.
+
+One measure of size is the Circular Pitch, p, the distance between adjacent teeth around the Pitch Circle.
+Thus  p = pi*D/z   where z is the number of teeth on a gear of pitch diameter D.
+The SI measure of size is the Module:  m = p/pi = D/z
+ 
+So the apparent diameter changes based on the number of teeth and the Circular Pitch/Module.
+	Inches: Circular Pitch is the increment of the Pitch Circle circumference per tooth in inches.
+	Metric: Module is the Teeth per millimetre of the Pitch Circle Diameter.
 Where:
 	Pitch Circle: Radius of this circle is equal to the distance from the center of the gear to the pitch point.
 	Pitch Point:  The point of tangency of the pitch circles of two meshing gears.
 
 Pressure angles are in degrees. Usually - 14.5(historical), 20(common), 25.
 The higher the pitch angle, the more effort to turn the gear.
-
-	
 	
 		</_param>
 		</page>
