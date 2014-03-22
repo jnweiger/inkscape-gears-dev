@@ -11,25 +11,25 @@
 				<_option value="useCP">Use Circular Pitch</_option>
 				<_option value="useMetric">Use Metric Module</_option>
 			</param>
-			<param name="pitch"     type="float"   min="0.0"  max="10000.0"	precision="5"	_gui-text="Circular pitch(inches)">20.0</param>
+			<param name="pitch"     type="float"   min="0.1"  max="10000.0"	precision="5"	_gui-text="Circular pitch(inches)">20.0</param>
 			<param name="metric"    type="boolean" _gui-text="Metric Module instead of CP">false</param>
 			<param name="angle"     type="float"   min="5.0"  max="45.0"   	precision="5"	_gui-text="Pressure angle (5..45)">20.0</param>
 			<param name="clearance" type="float"   _gui-text="Clearance" min="0" max="100" precision="5">0</param>
-			<param name="clearance_help" type="description">Clearance between bottom of gap of this gear and top of tooth of another</param>
+			<_param name="help" type="description">Clearance between bottom of gap of this gear and top of tooth of another</_param>
 			<param name="units" type="enum" _gui-text="Units:">
 				<item value="1">px</item>
 				<item value="3.5433070866">mm</item>
 				<item value="90">in</item>
 				<item value="1.25">pt</item>
 			</param>
-			<param name="annotation"    type="boolean" _gui-text="Draw annotation text">false</param>
+			<param name="annotation" type="boolean" _gui-text="Draw annotation text">false</param>
 		</page>	
 		
    		<page name='advanced' _gui-text='Advanced options'>
-			<param name="mount-hole"		type="float" min="0"    max="100"	precision="5"	_gui-text="Mount hole diameter">5</param>
-			<param name="mount_radius"		type="float" min="0"    max="1000"	precision="5"	_gui-text="Mount support diameter">15</param>
+			<param name="mount-hole"		type="float" min="0.01"    max="100"	precision="5"	_gui-text="Mount hole diameter">5</param>
 			<param name="holes-count"		type="int"   min="0"    max="100"	_gui-text="Number of holes">3</param>
 			<param name="holes-border"		type="float" min="1"    max="1000"	precision="5"	_gui-text="Holes border width">5</param>
+			<param name="mount_radius"		type="float" min="1"    max="1000"	precision="5"	_gui-text="Mount support diameter">15</param>
 			<param name="holes-rounding"	type="float" min="0"    max="1000"	precision="5"	_gui-text="Holes rounding">5</param>
 			<param name="centercross" type="boolean" _gui-text="Draw center cross">false</param>
 			<param name="pitchcircle" type="boolean" _gui-text="Draw pitch circle (for meshing)">false</param>
@@ -39,16 +39,12 @@
 				<item value="12">medium: 12 points</item>
 				<item value="6">low: 6 points</item>
 			</param>
-			<param name="accuracy_help" type="description">Good accuracy is important with a low tooth count</param>
-			<effect>
-			<object-type>all</object-type>
-				<effects-menu>
-				    <submenu _name="Render"/>
-				</effects-menu>						    		
-			</effect>
-			<script>
-				<command reldir="extensions" interpreter="python">gears-dev.py</command>
-			</script>
+			<_param name="help" type="description">Good accuracy is important with a low tooth count</_param>
+		</page>
+		<page name='rack' _gui-text='Rack'>
+			<param name="drawrack" type="boolean" _gui-text="Draw Rack">false</param>
+			<param name="teeth_length" type="int" min="1" max="500" _gui-text="Rack Length">10</param>
+			<_param name="help" type="description">Length (in teeth) of rack.</_param>
 		</page>
 		<page name="Usage" _gui-text="Usage">
 			<_param name="gearuse" type="description" xml:space="preserve">Gears:

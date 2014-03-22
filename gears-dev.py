@@ -109,7 +109,7 @@ class Gears(inkex.Effect):
 		self.OptionParser.add_option("", "--mount_radius",
 						action="store", type="float",
 						dest="mount_radius", default=15,
-						help="mount support radius")
+						help="Mount support radius")
 
 		self.OptionParser.add_option("", "--holes-count",
 						action="store", type="int",
@@ -139,6 +139,18 @@ class Gears(inkex.Effect):
 						action="store", type="inkbool",
 						dest="pitchcircle", default=False,
 						help="Draw pitch circle (for mating)")
+
+                self.OptionParser.add_option("-r", "--drawrack",
+						action="store", type="inkbool", 
+						dest="drawrack", default=False,
+						help="Draw Rack gear")
+		self.OptionParser.add_option("", "--teeth_length",
+						action="store", type="int",
+						dest="teeth_length", default=12,
+						help="Length (in teeth) of rack.")
+
+
+		
         def add_text(self, node, text, position, text_height=12):
                 txt_style = {'font-size': '%dpx' % text_height, 'font-style':'normal', 'font-weight': 'normal',
                              'fill': '#F6921E', 'font-family': 'Bitstream Vera Sans,sans-serif',
@@ -332,14 +344,46 @@ class Gears(inkex.Effect):
 		if pitchcircle:
 			draw_SVG_circle(pitch_radius,0,0, 'none', 0.1, 'Pitch circle', g )
 
-                # Add Annotation
+                # Add Annotation (above)
                 if self.options.annotation:
                         notes =['Pitch: '+ str(pitch), 'Pressure Angle: '+str(angle)] # e.g.
-                        y = outer_radius
                         text_height = 22
+                        y = - outer_radius - (len(notes)+1) * text_height * 1.2
                         for n in notes:
                                 self.add_text(g, n, [0,y], text_height)
                                 y += text_height * 1.2
+
+                # Draw rack (below)
+                if self.options.drawrack:
+                        spacing = 10#pitch
+                        # generate points: list of (x, y) pairs
+                        points = []
+                        x = 0
+                        tas = tan(angle) * spacing
+                        length = 100#self.options.teeth_length * pitch
+                        while x < length:
+                            # move along path, generating the next 'tooth'
+                            points.append((x, 0))
+                            points.append((x + tas, spacing))
+                            points.append((x + spacing, spacing))
+                            points.append((x + spacing + tas, 0))
+                            x += spacing * 2.0
+
+                        path = points_to_svgd(points)
+                        # position below Gear
+                        t = 'translate(' + str( 0 ) + ',' + str( outer_radius) + ')'
+                        g_attribs = {
+                            inkex.addNS('label', 'inkscape'): 'RackGear' + str(length),
+                            'transform': t}
+                        rack = inkex.etree.SubElement(g, 'g', g_attribs)
+
+                        # Create SVG Path for gear
+                        style = {'stroke': '#000000', 'fill': 'none'}
+                        gear_attribs = {
+                            'style': simplestyle.formatStyle(style),
+                            'd': path}
+                        gear = inkex.etree.SubElement(
+                            rack, inkex.addNS('path', 'svg'), gear_attribs)   
 
 if __name__ == '__main__':
 	e = Gears()
