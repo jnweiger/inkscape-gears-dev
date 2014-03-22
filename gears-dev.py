@@ -85,18 +85,22 @@ class Gears(inkex.Effect):
 						action="store", type="int",
 						dest="teeth", default=24,
 						help="Number of teeth")
+		
 		self.OptionParser.add_option("", "--metric_or_pitch",
                                                 action="store", type="string", 
                                                 dest="metric_or_pitch", default='useCP',
                                                 help="Traditional or Metric")
+		
 		self.OptionParser.add_option("-p", "--pitch",
 						action="store", type="float",
 						dest="pitch", default=20.0,
 						help="Circular Pitch (length of arc from one tooth to next) or Metric Module")
+
 		self.OptionParser.add_option("-M", "--metric",
 						action="store", type="inkbool", 
 						dest="metric_module", default=False,
 						help="Pitch is not CP, but 'Metric Module'; units in mm")
+
 		self.OptionParser.add_option("-a", "--angle",
 						action="store", type="float",
 						dest="angle", default=20.0,
@@ -106,16 +110,17 @@ class Gears(inkex.Effect):
 						action="store", type="float",
 						dest="units", default=0.0,
 						help="Units 1=px (default unless --metric), 3.5433070866=mm")
+
 		self.OptionParser.add_option("-A", "--accuracy",
 						action="store", type="int",
 						dest="accuracy", default=0,
 						help="Accuracy of involute: automatic: 5..20 (default), best: 20(default), medium 10, low: 5; good acuracy is important with a low tooth count")
-
                 # Clearance: Radial distance between top of tooth on one gear to bottom of gap on another.
                 self.OptionParser.add_option("", "--clearance",
 						action="store", type="float",
 						dest="clearance", default=0.0,
 						help="Clearance between bottom of gap of this gear and top of tooth of another")
+
                 self.OptionParser.add_option("", "--annotation",
 						action="store", type="inkbool", 
 						dest="annotation", default=False,
