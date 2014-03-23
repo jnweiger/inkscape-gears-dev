@@ -11,8 +11,9 @@
 				<_option value="useCP">Use Circular Pitch</_option>
 				<_option value="useMetric">Use Metric Module</_option>
 			</param>
-			<param name="pitch"     type="float"   min="0.0"  max="10000.0"	precision="5"	_gui-text="Circular pitch / Metric Module">20.0</param>
-			<param name="metric"    type="boolean" _gui-text="Metric Module instead of CP">false</param>
+			<param name="pitch"     type="float"   min="0.1"  max="10000.0"	precision="5"	_gui-text="Circular pitch / Metric Module">20.0</param>
+			<param name="module"    type="float"   min="0.1"  max="1000.0"	precision="4"   _gui-text="Metric Module instead of CP">1.25</param>
+			<_param name="help" type="description">---------------</_param>
 			<param name="angle"     type="float"   min="5.0"  max="45.0"   	precision="5"	_gui-text="Pressure angle (5..45)">20.0</param>
 			<param name="clearance" type="float"   _gui-text="Clearance" min="0" max="100" precision="5">0</param>
 			<_param name="help" type="description">Clearance between bottom of gap of this gear and top of tooth of another</_param>
@@ -45,8 +46,15 @@
 		</page>
 		<page name='rack' _gui-text='Rack'>
 			<param name="drawrack" type="boolean" _gui-text="Draw Rack">false</param>
-			<param name="teeth_length" type="int" min="1" max="500" _gui-text="Rack Length">10</param>
+			<param name="teeth_length" type="int"   min="1"   max="500" _gui-text="Rack Length">10</param>
+			<param name="base_height"  type="float" min="0.1" max="100"	precision="4"	_gui-text="Height of Base">5</param>
+			<param name="base_tab"     type="float" min="0.1" max="100"	precision="4"	_gui-text="Length of end tab">5</param>
 			<_param name="help" type="description">Length (in teeth) of rack.</_param>
+			<_param name="packing" type="description">
+			.
+			
+			
+			</_param>
 		</page>
 		<page name="Usage" _gui-text="Usage">
 			<_param name="gearuse" type="description" xml:space="preserve">Gears:
@@ -66,7 +74,6 @@ Where:
 
 Pressure angles are in degrees. Usually - 14.5(historical), 20(common), 25.
 The higher the pitch angle, the more effort to turn the gear.
-	
 		</_param>
 		</page>
 	</param>	

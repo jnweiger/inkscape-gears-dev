@@ -28,7 +28,7 @@ import inkex
 import simplestyle, sys, os
 from math import *
 
-__version__ = '0.3'
+__version__ = '0.4'
 
 def linspace(a,b,n):
 	return [a+x*(b-a)/(n-1) for x in range(0,n)]
@@ -62,7 +62,7 @@ def points_to_svgd(p):
 	svgd = 'M%.4f,%.4f' % f
 	for x in p:
 		svgd += 'L%.4f,%.4f' % x
-	svgd += 'z'
+        svgd += 'z'
 	return svgd
 
 def draw_SVG_circle(r, cx, cy, fill, strokewidth, name, parent):
@@ -86,7 +86,7 @@ class Gears(inkex.Effect):
 						dest="teeth", default=24,
 						help="Number of teeth")
 		
-		self.OptionParser.add_option("", "--metric_or_pitch",
+		self.OptionParser.add_option("-M", "--metric_or_pitch",
                                                 action="store", type="string", 
                                                 dest="metric_or_pitch", default='useCP',
                                                 help="Traditional or Metric")
@@ -96,10 +96,10 @@ class Gears(inkex.Effect):
 						dest="pitch", default=20.0,
 						help="Circular Pitch (length of arc from one tooth to next) or Metric Module")
 
-		self.OptionParser.add_option("-M", "--metric",
-						action="store", type="inkbool", 
-						dest="metric_module", default=False,
-						help="Pitch is not CP, but 'Metric Module'; units in mm")
+		self.OptionParser.add_option("-m", "--module",
+						action="store", type="float", 
+						dest="module", default=2.5,
+						help="Metric Module - ratio of diameter/teeth")
 
 		self.OptionParser.add_option("-a", "--angle",
 						action="store", type="float",
@@ -157,11 +157,11 @@ class Gears(inkex.Effect):
 						dest="active_tab", default='',
 						help="Active tab. Not used now.")
 						
-		self.OptionParser.add_option("-c", "--centercross",
+		self.OptionParser.add_option("-x", "--centercross",
 						action="store", type="inkbool", 
 						dest="centercross", default=False,
 						help="Draw cross in center")
-		self.OptionParser.add_option("-m", "--pitchcircle",
+		self.OptionParser.add_option("-c", "--pitchcircle",
 						action="store", type="inkbool",
 						dest="pitchcircle", default=False,
 						help="Draw pitch circle (for mating)")
@@ -174,7 +174,14 @@ class Gears(inkex.Effect):
 						action="store", type="int",
 						dest="teeth_length", default=12,
 						help="Length (in teeth) of rack.")
-
+                self.OptionParser.add_option("", "--base_height",
+						action="store", type="float",
+						dest="base_height", default=8,
+						help="Height of Base")
+                self.OptionParser.add_option("", "--base_tab",
+						action="store", type="float",
+						dest="base_tab", default=14,
+						help="Length of tabs on ends")
 
 		
         def add_text(self, node, text, position, text_height=12):
@@ -191,32 +198,36 @@ class Gears(inkex.Effect):
                 
 
 	def effect(self):
+                """ Calculate Gear factors from inputs.
+                    - Make list of radii, angles, and centers for each tooth and iterate through them
+                    - Turn on other visual features e.g. cross, rack, annotations, etc
+                """
+                # Debug using:  inkex.debug( "angle=%s pitch=%s" % (angle, pitch) )
 		accuracy1 = 20 # Number of points of the involute curve
 		accuracy2 = 9  # Number of points on circular parts
 		units = self.options.units
 		teeth = self.options.teeth 
-		metric_module = self.options.metric_module
+		metric_module = self.options.metric_or_pitch == 'useMetric'
 		if self.options.accuracy is not None:
                         if self.options.accuracy == 0:  
                             # automatic
-                            if teeth < 10:   accuracy1 = 20
+                            if   teeth < 10: accuracy1 = 20
                             elif teeth < 30: accuracy1 = 12
                             else:            accuracy1 = 6
 			else:
                             accuracy1 = self.options.accuracy
-			accuracy2 = int(self.options.accuracy)/2-1
+			accuracy2 = int(self.options.accuracy)/2 - 1
 			if accuracy2 < 3: accuracy2 = 3
 
                 if units == 0.0:
                         if metric_module:
-                                units = 3.5433070866
+                                units = 3.5433070866 # ??
                         else:
                                 units = 1
-                # here is how to use optiongroup
-		# if self.options.metric_or_pitch == 'useCP':
+                #
                 if metric_module:
                         # options.pitch is metric modules, we need circular pitch
-		        pitch = self.options.pitch * units * pi
+		        pitch = self.options.module * units * pi
                 else:
 		        pitch = self.options.pitch * units
 		angle = self.options.angle # Angle of tangent to tooth at circular pitch wrt radial line.
@@ -316,10 +327,6 @@ class Gears(inkex.Effect):
 
 		# Holes
 		holes = ''
-##		if holes_border == 0 and holes_count > 0 :
-##			inkex.errormsg(_("Holes border width should be more than 0!")+"\n")
-##			return		
-		#r_inner  = mount_hole/2 + holes_border # now mount_radius
 		r_outer = root_radius - holes_border
 		for i in range(holes_count):
 			points = []
@@ -370,9 +377,9 @@ class Gears(inkex.Effect):
 		if centercross:
 			style = { 'stroke': '#000000', 'fill': 'none', 'stroke-width':0.1 }
 			cs = str(pitch/3) # centercross size
-			d = 'M-'+cs+',0L'+cs+',0M0,-'+cs+'L0,'+cs 
-			center_attribs = {inkex.addNS('label','inkscape'):'Center cross','style':simplestyle.formatStyle(style), 'd':d} #'M-10,0L10,0M0,-10L0,10'}
-			center = inkex.etree.SubElement(g, inkex.addNS('path','svg'),center_attribs )
+			d = 'M-'+cs+',0L'+cs+',0M0,-'+cs+'L0,'+cs  # 'M-10,0L10,0M0,-10L0,10'
+			center_attribs = {inkex.addNS('label','inkscape'):'Center cross','style':simplestyle.formatStyle(style), 'd':d}
+			center = inkex.etree.SubElement(g, inkex.addNS('path','svg'), center_attribs )
 
 		# Add pitch circle (for mating)
 		if pitchcircle:
@@ -380,34 +387,56 @@ class Gears(inkex.Effect):
 
                 # Add Annotation (above)
                 if self.options.annotation:
-                        notes =['Pitch: '+ str(pitch), 'Pressure Angle: '+str(angle)] # e.g.
+                        notes =['Teeth: %d   Pitch: %2.4f' % (teeth, pitch),
+                                'Pressure Angle: %2.4f' % (angle),
+                                'Pitch diameter: %2.4f' % (pitch_diameter),
+                                'Outer diameter: %2.4f' % (outer_diameter),
+                                'Base diameter: %2.4f'  % (base_diameter),
+                                'Addendum: %2.4f'  % (addendum),
+                                'Dedendum: %2.4f'  % (dedendum)
+                                ]
                         text_height = 22
+                        # position above
                         y = - outer_radius - (len(notes)+1) * text_height * 1.2
-                        for n in notes:
-                                self.add_text(g, n, [0,y], text_height)
+                        for note in notes:
+                                self.add_text(g, note, [0,y], text_height)
                                 y += text_height * 1.2
 
                 # Draw rack (below)
                 if self.options.drawrack:
-                        spacing = 10#pitch
+                        spacing = addendum*1.414 # absolutely should be using pitch and a proper algorithm
+                        base_height = self.options.base_height * units
+                        tabs = self.options.base_tab * units
                         # generate points: list of (x, y) pairs
                         points = []
-                        x = 0
-                        tas = tan(angle) * spacing
-                        length = 100#self.options.teeth_length * pitch
-                        while x < length:
+                        tooth_count = self.options.teeth_length
+                        x = -tooth_count*spacing - tabs # start mirrored on left
+                        tas = tan(radians(angle)) * spacing
+                        #inkex.debug("angle=%s pitch=%s"%(angle, pitch))
+                        #start with base
+                        points.append((x, base_height))
+                        points.append((x, 0))
+                        x += tabs
+                        points.append((x, 0))
+                        # Clearly this is just making simple ramps.
+                        # We need to make involute teeth on a circle with infiinte radius
+                        for i in range(tooth_count):
                             # move along path, generating the next 'tooth'
                             points.append((x, 0))
-                            points.append((x + tas, spacing))
-                            points.append((x + spacing, spacing))
+                            points.append((x + tas, -spacing))
+                            points.append((x + spacing, -spacing))
                             points.append((x + spacing + tas, 0))
                             x += spacing * 2.0
-
+                        x -= spacing - tas # remove last adj
+                        points.append((x, 0))
+                        x += tabs
+                        points.append((x, 0))
+                        points.append((x, base_height)) # add end step
                         path = points_to_svgd(points)
                         # position below Gear
-                        t = 'translate(' + str( 0 ) + ',' + str( outer_radius) + ')'
+                        t = 'translate(' + str( 0 ) + ',' + str( outer_radius + addendum*2) + ')'
                         g_attribs = {
-                            inkex.addNS('label', 'inkscape'): 'RackGear' + str(length),
+                            inkex.addNS('label', 'inkscape'): 'RackGear' + str(tooth_count),
                             'transform': t}
                         rack = inkex.etree.SubElement(g, 'g', g_attribs)
 
