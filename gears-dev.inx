@@ -72,8 +72,8 @@ Where:
 	Pitch Circle: Radius of this circle is equal to the distance from the center of the gear to the pitch point.
 	Pitch Point:  The point of tangency of the pitch circles of two meshing gears.
 
-Pressure angles are in degrees. Usually - 14.5(historical), 20(common), 25.
-The higher the pitch angle, the more effort to turn the gear.
+Pressure angles are in degrees. Usually - 14.5(historical), 20(common and stronger), 25.
+The higher the pitch angle, the more effort to turn the gear but stronger teeth.
 		</_param>
 		</page>
 	</param>	

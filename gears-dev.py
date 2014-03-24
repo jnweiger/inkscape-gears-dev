@@ -73,6 +73,43 @@ def draw_SVG_circle(r, cx, cy, fill, strokewidth, name, parent):
                     inkex.addNS('label','inkscape'):name}
     circle = inkex.etree.SubElement(parent, inkex.addNS('circle','svg'), circ_attribs )
     
+
+def generate_rack_path(tooth_count, module, pressure_angle,
+                       base_height, tab_length, clearance=0, draw_guides=False):
+        """ Just draw the rack """
+        pitch = module / pi
+        pitch_diameter = tooth_count * pitch
+        addendum = pitch_diameter / tooth_count
+        spacing = addendum * 1.414 # absolutely not right - should be using pitch and a proper algorithm
+        # generate points: list of (x, y) pairs
+        points = []
+        x = -tooth_count * spacing - tab_length # center rack in drawing
+        tas = tan(radians(pressure_angle)) * spacing
+        #inkex.debug("angle=%s spacing=%s"%(pressure_angle, spacing))
+        # Start with base tab on LHS
+        points.append((x, base_height))
+        points.append((x, 0))
+        x += tab_length
+        points.append((x, 0))
+        # An involute on a circle of infinite radius is a simple linear ramp.
+        # We need to add curve at bottom and use clearance.
+        for i in range(tooth_count):
+            # move along path, generating the next 'tooth'
+            points.append((x, 0))
+            points.append((x + tas, -spacing))
+            points.append((x + spacing, -spacing))
+            points.append((x + spacing + tas, 0))
+            x += spacing * 2.0
+        x -= spacing - tas # remove last adjustment
+        # add base on RHS
+        points.append((x, 0))
+        x += tab_length
+        points.append((x, 0))
+        points.append((x, base_height)) # add end tab
+        # return ready for use in an SVG 'path'
+        return points_to_svgd(points)
+
+
 class Gears(inkex.Effect):
 	def __init__(self):
 		inkex.Effect.__init__(self)
@@ -404,35 +441,10 @@ class Gears(inkex.Effect):
 
                 # Draw rack (below)
                 if self.options.drawrack:
-                        spacing = addendum*1.414 # absolutely should be using pitch and a proper algorithm
                         base_height = self.options.base_height * units
-                        tabs = self.options.base_tab * units
-                        # generate points: list of (x, y) pairs
-                        points = []
-                        tooth_count = self.options.teeth_length
-                        x = -tooth_count*spacing - tabs # start mirrored on left
-                        tas = tan(radians(angle)) * spacing
-                        #inkex.debug("angle=%s pitch=%s"%(angle, pitch))
-                        #start with base
-                        points.append((x, base_height))
-                        points.append((x, 0))
-                        x += tabs
-                        points.append((x, 0))
-                        # Clearly this is just making simple ramps.
-                        # We need to make involute teeth on a circle with infiinte radius
-                        for i in range(tooth_count):
-                            # move along path, generating the next 'tooth'
-                            points.append((x, 0))
-                            points.append((x + tas, -spacing))
-                            points.append((x + spacing, -spacing))
-                            points.append((x + spacing + tas, 0))
-                            x += spacing * 2.0
-                        x -= spacing - tas # remove last adj
-                        points.append((x, 0))
-                        x += tabs
-                        points.append((x, 0))
-                        points.append((x, base_height)) # add end step
-                        path = points_to_svgd(points)
+                        tab_width = self.options.base_tab * units
+                        path = generate_rack_path(tooth_count, pitch, angle,
+                                                  base_height, tab_width)
                         # position below Gear
                         t = 'translate(' + str( 0 ) + ',' + str( outer_radius + addendum*2) + ')'
                         g_attribs = {
@@ -452,26 +464,31 @@ if __name__ == '__main__':
 	e = Gears()
 	e.affect()
 
-# changes
-# added Annotation
-# added method showing options groups in UI (radio buttons)
+# Notes
 
-#bugs
-# holes rounding currently is not used
-
-# Suggestions:
-# - add more useful annotations
-# - change UI so that more typical values can be defined for gear constructoin.
-
-
-
-# - if user could select between CP or outer radius. I think this would make it easier to use.
-#   User cannot currently tell how big dia will finally be.
-#   (Could also add annotation checkbox which could add text showing this and other info.)
-#   So add checkbox for CP, or outer radius, and value for radius. Then use appropriate one to calculate other.
-
-# - I think it would be useful to add checkbox to draw a second gear - properly meshing with first at upper right
-#   (mesh with first tooth top right)
-#   This would allow user to see what clearance was doing and pressure angle
-
-# in use: user would have preview on - see text annotations, and meshing gear. Then turn off these when creating.
+# add to center hole a D for a key (width, height defined on pg 737
+##def generate_gear_path(teeth_count, module, pressure_angle, mount_hole_dia,
+##                       clearance=0, unit_factor=1,
+##                       mount_radius=0, spoke_count=0, spoke_border=0,
+##                       accuracy=20, draw_guides=False,
+##                       ):
+##        """ returns a path (for svg) of the gear where:
+##            - unit_factor is precomputed based on document and dialog dimension
+##            - spoke_count equivalent to hole_count
+##            - draw_guides shows both centercross and pitch circle.
+##            Missing parameters:
+##            - key - an (x,y) tuple of box shape to cut out of mount hole
+##            - spoke_rounding - for smoother internal hole corners
+##            - 
+##        """
+##        # Calls a function to calculate pitch circle (so can be called to show layout of simplified gears)
+##        # - draw pitch circle using draw_SVG_circle()
+##        pass
+##
+##def generate_rack_path(teeth_count, module, pressure_angle, tab_length,
+##                       clearance=0, unit_factor=1,
+##                       accuracy=20, draw_guides=False
+##                      ):
+##        """ Just draw the rack """
+##        pass
+### and perhaps: generate_ring_path
