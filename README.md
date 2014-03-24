@@ -22,4 +22,10 @@ Mac OS X:
 *  /Applications/Inkscape.app/Contents/Resources/extensions/. 
 
 
+References
+==========
+
+* http://wiki.inkscape.org/wiki/index.php/PythonEffectTutorial
+* http://www.gizmology.net/gears.htm
+* http://www.micro-machine-shop.com/gear_theory.pdf
 
