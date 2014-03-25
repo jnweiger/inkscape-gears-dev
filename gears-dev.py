@@ -28,9 +28,13 @@ import inkex
 import simplestyle, sys, os
 from math import *
 
-__version__ = '0.4'
+__version__ = '0.5'
 
 def linspace(a,b,n):
+    """ return list of linear interp of a to b in n steps
+        - if a and b are ints - you'll get an int result.
+        - n must be an integer
+    """
     return [a+x*(b-a)/(n-1) for x in range(0,n)]
 
 def involute_intersect_angle(Rb, R):
@@ -38,11 +42,15 @@ def involute_intersect_angle(Rb, R):
     return (sqrt(R**2 - Rb**2) / (Rb)) - (acos(Rb / R))
 
 def point_on_circle(radius, angle):
+    " return xy coord of the point at distance radius from origin at angle "
     x = radius * cos(angle)
     y = radius * sin(angle)
     return (x, y)
 
 def points_to_bbox(p):
+    """ from a list of points (x,y pairs)
+        - return the lower-left xy and upper-right xy
+    """
     llx = urx = p[0][0]
     lly = ury = p[0][1]
     for x in p[1:]:
@@ -53,10 +61,15 @@ def points_to_bbox(p):
     return (llx, lly, urx, ury)
 
 def points_to_bbox_center(p):
+    """ from a list of points (x,y pairs)
+        - find midpoint of bounding box around all points
+        - return (x,y)
+    """
     bbox = points_to_bbox(p)
     return ((bbox[0]+bbox[2])/2.0, (bbox[1]+bbox[3])/2.0)
                 
 def points_to_svgd(p):
+    " convert list of points into a closed SVG path list"
     f = p[0]
     p = p[1:]
     svgd = 'M%.4f,%.4f' % f
@@ -65,28 +78,63 @@ def points_to_svgd(p):
     svgd += 'z'
     return svgd
 
-def draw_SVG_circle(r, cx, cy, fill, strokewidth, name, parent):
-    style = { 'stroke': '#000000', 'fill': fill, 'stroke-width':strokewidth }
-    circ_attribs = {'style':simplestyle.formatStyle(style),
-                    'cx':str(cx), 'cy':str(cy), 
-                    'r':str(r),
+def draw_SVG_circle(parent, r, cx, cy, name, style):
+    " add an SVG circle entity to parent "
+    circ_attribs = {'style': simplestyle.formatStyle(style),
+                    'cx': str(cx), 'cy': str(cy), 
+                    'r': str(r),
                     inkex.addNS('label','inkscape'):name}
     circle = inkex.etree.SubElement(parent, inkex.addNS('circle','svg'), circ_attribs )
-    
 
-def generate_rack_path(tooth_count, module, pressure_angle,
+
+def gear_calculations(num_teeth, metric, module, circular_pitch, pressure_angle, clearance):
+    """ intention is to put base calcs for gear in one place.
+        - does not calc for stub teeth just regular
+        - pulled from web - might not be the right core list for this program
+    """
+    if metric:
+        # have unneccssary duplicates for inch/metric
+        #  probably only one needs to be calculated.
+        #  I.e. calc module and derive rest from there.
+        #  or calc dp
+        diametral_pitch = 25.4 / module # dp in inches
+        pitch_diameter = module * num_teeth
+        addendum = module
+        #dedendum = 1.157 * module # what is 1.157 ?? a clearance calc ?
+        dedendum = module + clearance # or maybe ?? max(module + clearance, 1.157 * module)
+        working_depth = 2 * module
+        whole_depth = 2.157 * module
+        outside_diameter = module * (num_teeth + 2)
+    else:
+        diametral_pitch = pi / circular_pitch
+        pitch_diameter = num_teeth / diametral_pitch
+        addendum = 1 / diametral_pitch
+        dedendum = 1.157 / diametral_pitch # ?? number from ?
+        working_depth = 2 / diametral_pitch
+        whole_depth = 2.157 / diametral_pitch
+        outside_diameter = (teeth + 2) / diametral_pitch
+    #
+    base_diameter = pitch_diameter * cos(pressure_angle)
+    #
+    return (diametral_pitch, pitch_diameter, addendum, dedendum,
+            working_depth, whole_depth, outside_diameter, base_diameter)
+
+ 
+
+def generate_rack_path(tooth_count, tooth_width, pressure_angle,
                        base_height, tab_length, clearance=0, draw_guides=False):
-        """ Return path (suitable for svg) of the Rack gear """
-        pitch = module / pi
-        pitch_diameter = tooth_count * pitch
-        addendum = pitch_diameter / tooth_count
-        spacing = addendum * 1.414 # absolutely not right - should be using pitch and a proper algorithm
-        # generate points: list of (x, y) pairs
-        points = []
+        """ Return path (suitable for svg) of the Rack gear.
+            - rack gear uses straight sides
+                - involute on a circle of infinite radius is a simple linear ramp
+            - needs adj for clearance
+            - needs to draw pitch circle line
+        """
+        spacing = tooth_width # basically right...?
         x = -tooth_count * spacing - tab_length # center rack in drawing
         tas = tan(radians(pressure_angle)) * spacing
         #inkex.debug("angle=%s spacing=%s"%(pressure_angle, spacing))
         # Start with base tab on LHS
+        points = [] # make list of points
         points.append((x, base_height))
         points.append((x, 0))
         x += tab_length
@@ -96,8 +144,8 @@ def generate_rack_path(tooth_count, module, pressure_angle,
         for i in range(tooth_count):
             # move along path, generating the next 'tooth'
             points.append((x, 0))
-            points.append((x + tas, -spacing))
-            points.append((x + spacing, -spacing))
+            points.append((x + tas, -spacing - clearance))
+            points.append((x + spacing, -spacing - clearance)) # just guessing - probably should be clearance + addendum
             points.append((x + spacing + tas, 0))
             x += spacing * 2.0
         x -= spacing - tas # remove last adjustment
@@ -106,13 +154,18 @@ def generate_rack_path(tooth_count, module, pressure_angle,
         x += tab_length
         points.append((x, 0))
         points.append((x, base_height)) # add end tab
-        # return ready for use in an SVG 'path'
+        # Draw line representing the pitch circle
+        if draw_guides:
+            # not sure where pitch circle is
+            pass
+        # return points ready for use in an SVG 'path'
         return points_to_svgd(points)
 
 
 class Gears(inkex.Effect):
     def __init__(self):
         inkex.Effect.__init__(self)
+        # try using inkex.debug(string) instead...
         try:
             self.tty = open("/dev/tty", 'w')
         except:
@@ -144,9 +197,9 @@ class Gears(inkex.Effect):
                                      help="Pressure Angle (common values: 14.5, 20, 25 degrees)")
 
         self.OptionParser.add_option("-u", "--units",
-                                     action="store", type="float",
-                                     dest="units", default=0.0,
-                                     help="Units 1=px (default unless --metric), 3.5433070866=mm")
+                                     action="store", type="string",
+                                     dest="units", default='mm',
+                                     help="Units this dialog is using")
 
         self.OptionParser.add_option("-A", "--accuracy",
                                      action="store", type="int",
@@ -173,15 +226,15 @@ class Gears(inkex.Effect):
                                      dest="mount_radius", default=15,
                                      help="Mount support radius")
 
-        self.OptionParser.add_option("", "--holes-count",
+        self.OptionParser.add_option("", "--spoke-count",
                                      action="store", type="int",
-                                     dest="holes_count", default=24,
-                                     help="Holes count")
+                                     dest="spoke_count", default=3,
+                                     help="Spokes count")
 
-        self.OptionParser.add_option("", "--holes-border",
+        self.OptionParser.add_option("", "--spoke-width",
                                      action="store", type="float",
-                                     dest="holes_border", default=5,
-                                     help="Holes border width")
+                                     dest="spoke_width", default=5,
+                                     help="Spoke width")
 
         self.OptionParser.add_option("", "--holes-rounding",
                                      action="store", type="float",
@@ -222,7 +275,8 @@ class Gears(inkex.Effect):
                                      action="store", type="float",
                                      dest="base_tab", default=14,
                                      help="Length of tabs on ends")
-     
+
+    
     def add_text(self, node, text, position, text_height=12):
         """ Create and insert a single line of text into the svg under node.
             - use 'text' type and label as anootation
@@ -238,58 +292,82 @@ class Gears(inkex.Effect):
                        }
         line = inkex.etree.SubElement(node, inkex.addNS('text','svg'), line_attribs)
         line.text = text
-                
+
+           
+    def calc_units_factor(self, this_units):
+        """ given the document units and units declared in this extension's dialog
+            - return the scale factor for all dimension conversions
+        """
+        namedView = self.document.getroot().find(inkex.addNS('namedview', 'sodipodi'))
+        doc_units = inkex.uutounit(1.0, namedView.get(inkex.addNS('document-units', 'inkscape')))
+        dialog_units = inkex.uutounit(1.0, this_units)
+        #inkex.debug("docunits = %s dialog units = %s factor = %s" % (doc_units, dialog_units, doc_units/dialog_units))
+        return (doc_units/dialog_units)
+        
 
     def effect(self):
         """ Calculate Gear factors from inputs.
             - Make list of radii, angles, and centers for each tooth and iterate through them
             - Turn on other visual features e.g. cross, rack, annotations, etc
         """
+        path_stroke = '#000000'  # might expose one day
+        path_fill   = 'none'     # no fill - just a line
+        path_stroke_width  = 0.6 # might expose one day (guides are /5 thick)
+        
         # Debug using:  inkex.debug( "angle=%s pitch=%s" % (angle, pitch) )
-        accuracy1 = 20 # Number of points of the involute curve
-        accuracy2 = 9  # Number of points on circular parts
-        units = self.options.units
-        teeth = self.options.teeth 
-        metric_module = self.options.metric_or_pitch == 'useMetric'
+        # take into account document dimensions and units in dialog. - calc factor
+        unit_factor = self.calc_units_factor(self.options.units)
+        teeth = self.options.teeth
+        angle = self.options.angle # Angle of tangent to tooth at circular pitch wrt radial line.
+        # Clearance: Radial distance between top of tooth on one gear to bottom of gap on another.
+        clearance = self.options.clearance * unit_factor
+        
+        accuracy_involute = 20 # Number of points of the involute curve
+        accuracy_circular = 9  # Number of points on circular parts
         if self.options.accuracy is not None:
             if self.options.accuracy == 0:  
                 # automatic
-                if   teeth < 10: accuracy1 = 20
-                elif teeth < 30: accuracy1 = 12
-                else:            accuracy1 = 6
+                if   teeth < 10: accuracy_involute = 20
+                elif teeth < 30: accuracy_involute = 12
+                else:            accuracy_involute = 6
             else:
-                accuracy1 = self.options.accuracy
-            accuracy2 = int(self.options.accuracy)/2 - 1
-            if accuracy2 < 3: accuracy2 = 3
-            if units == 0.0:
-                if metric_module:
-                    units = 3.5433070866 # ?? this has 90dpi adjustment. should be doing units differently
-                else:
-                    units = 1
+                accuracy_involute = self.options.accuracy
+            accuracy_circular = min(3, int(self.options.accuracy) / 2 - 1) # never less than three
+##            if accuracy_circular < 3: accuracy_circular = 3
+##            # replaced following by doing unit_factor above
+##            if units == 0.0:
+##                if use_metric_module:
+##                    units = 3.5433070866 # ?? this is doing direct 90dpi adjustment
+##                else:
+##                    units = 1
             #
-            if metric_module:
+            use_metric_module = self.options.metric_or_pitch == 'useMetric'
+            if use_metric_module:
             # options.pitch is metric modules, we need circular pitch
-                pitch = self.options.module * units * pi
+                pitch = self.options.module * unit_factor * pi
             else:
-                pitch = self.options.pitch * units
-        angle = self.options.angle # Angle of tangent to tooth at circular pitch wrt radial line.
+                #pitch = inkex.uutounit(self.options.pitch,'in') * unit_factor # wrong!
+                pitch = self.options.pitch * unit_factor # wrong! (see first annotation - compare values with real table)
+        
+        mount_hole = self.options.mount_hole * unit_factor
+        mount_radius = self.options.mount_radius * unit_factor
 
-        mount_hole = self.options.mount_hole * units
-        mount_radius = self.options.mount_radius * units
-
-        holes_count = self.options.holes_count
-        holes_rounding = self.options.holes_rounding * units
-        holes_border = self.options.holes_border * units
+        spoke_count = self.options.spoke_count
+        holes_rounding = self.options.holes_rounding * unit_factor
+        spoke_width = self.options.spoke_width * unit_factor
+        
+        # should we combine to draw_guides ?
         centercross = self.options.centercross # draw center or not (boolean)
         pitchcircle = self.options.pitchcircle # draw pitch circle or not (boolean)
-        clearance = self.options.clearance * units
         
         # print >>sys.stderr, "Teeth: %s\n"     % teeth
         two_pi = 2.0 * pi
 
+        # Hopefully replace a lot of these with a call to a modified gear_calculations() above
+        
         # Pitch (circular pitch): Length of the arc from one tooth to the next)
         # Pitch diameter: Diameter of pitch circle.
-        pitch_diameter = float( teeth ) * pitch / pi
+        pitch_diameter = teeth * pitch / pi
         pitch_radius   = pitch_diameter / 2.0
 
         # Base Circle
@@ -297,7 +375,7 @@ class Gears(inkex.Effect):
         base_radius   = base_diameter / 2.0
 
         # Diametrial pitch: Number of teeth per unit length.
-        pitch_diametrial = float( teeth )/ pitch_diameter
+        pitch_diametrial = teeth / pitch_diameter
 
         # Addendum: Radial distance from pitch circle to outside circle.
         addendum = 1.0 / pitch_diametrial
@@ -307,16 +385,11 @@ class Gears(inkex.Effect):
         outer_diameter = outer_radius * 2.0
 
         # Tooth thickness: Tooth width along pitch circle.
-        tooth  = ( pi * pitch_diameter ) / ( 2.0 * float( teeth ) )
+        tooth  = ( pi * pitch_diameter ) / ( 2.0 * teeth )
 
         # Undercut?
         undercut = (2.0 / ( sin( radians( angle ) ) ** 2))
         needs_undercut = teeth < undercut
-
-
-        # Clearance: Radial distance between top of tooth on one gear to bottom of gap on another.
-        # Is now a parameter
-        #clearance = 0.0
 
         # Dedendum: Radial distance from pitch circle to root diameter.
         dedendum = addendum + clearance
@@ -325,13 +398,15 @@ class Gears(inkex.Effect):
         root_radius =  pitch_radius - dedendum
         root_diameter = root_radius * 2.0
 
-        half_thick_angle = two_pi / (4.0 * float( teeth ) )
+        # All base calcs done. Start building gear
+        
+        half_thick_angle = two_pi / (4.0 * teeth ) #?? = pi / (2.0 * teeth)
         pitch_to_base_angle  = involute_intersect_angle( base_radius, pitch_radius )
         pitch_to_outer_angle = involute_intersect_angle( base_radius, outer_radius ) - pitch_to_base_angle
 
         start_involute_radius = max(base_radius, root_radius)
-        radii = linspace(start_involute_radius,outer_radius,accuracy1)
-        angles = [ involute_intersect_angle(base_radius, r) for r in radii]
+        radii = linspace(start_involute_radius, outer_radius, accuracy_involute)
+        angles = [involute_intersect_angle(base_radius, r) for r in radii]
 
         centers = [(x * two_pi / float( teeth) ) for x in range( teeth ) ]
         points = []
@@ -348,50 +423,68 @@ class Gears(inkex.Effect):
             offsetangles2 = [ base2 - x for x in angles] 
             points2 = [ point_on_circle( radii[i], offsetangles2[i]) for i in range(0,len(radii)) ]
 
-            points_on_outer_radius = [ point_on_circle(outer_radius, x) for x in linspace(offsetangles1[-1],offsetangles2[-1],accuracy2)]
+            points_on_outer_radius = [ point_on_circle(outer_radius, x) for x in linspace(offsetangles1[-1], offsetangles2[-1], accuracy_circular) ]
 
             if root_radius > base_radius:
                 pitch_to_root_angle = pitch_to_base_angle - involute_intersect_angle(base_radius, root_radius )
                 root1 = pitch1 - pitch_to_root_angle
                 root2 = pitch2 + pitch_to_root_angle
-                points_on_root = [point_on_circle ( root_radius, x) for x in linspace(root2,root1+(two_pi/float(teeth)),accuracy2)]
+                points_on_root = [point_on_circle (root_radius, x) for x in linspace(root2, root1+(two_pi/float(teeth)), accuracy_circular) ]
                 p_tmp = points1 + points_on_outer_radius[1:-1] + points2[::-1] + points_on_root[1:-1] # [::-1] reverses list; [1:-1] removes first and last element
             else:
-                points_on_root = [point_on_circle ( root_radius, x) for x in linspace(base2,base1+(two_pi/float(teeth)),accuracy2)]
+                points_on_root = [point_on_circle (root_radius, x) for x in linspace(base2, base1+(two_pi/float(teeth)), accuracy_circular) ]
                 p_tmp = points1 + points_on_outer_radius[1:-1] + points2[::-1] + points_on_root # [::-1] reverses list
 
             points.extend( p_tmp )
 
         path = points_to_svgd( points )
         bbox_center = points_to_bbox_center( points )
-                # print >>self.tty, bbox_center
+        # print >>self.tty, bbox_center
 
         # Holes
         holes = ''
-        r_outer = root_radius - holes_border
-        for i in range(holes_count):
+        r_outer = root_radius - spoke_width
+        for i in range(spoke_count):
             points = []
-            start_a, end_a = i*2*pi/holes_count, (i+1)*2*pi/holes_count
-            a = asin(holes_border/mount_radius/2)
-            points += [ point_on_circle(mount_radius,start_a+a), point_on_circle(mount_radius,end_a-a)]
-            try:
-                a = asin(holes_border/r_outer/2)
-            except:
-                print >> sys.stderr, "error: Holes border width is too large:", holes_border/units, "max=", r_outer*2/units
-                            
-            points += [point_on_circle(r_outer,end_a-a), point_on_circle(r_outer,start_a+a) ]
+            start_a, end_a = i * two_pi / spoke_count, (i+1) * two_pi / spoke_count
+            # inner circle around mount
+            # - a better way to do this might be to increase local spoke width to be larger by epsilon than mount radius
+            # - this soln prevents blowout but does not make a useful result.
+            # Also mount radius should increase to avoid folding over when spoke_width gets big. But by what factor ?
+            # - can we calc when spoke_count*(spoke_width+delta) exceeds circumference of mount_radius circle.
+            # - then increase radius to fit - then recalc mount_radius.
+            asin_factor = spoke_width/mount_radius/2
+            # check if need to clamp radius
+            if asin_factor > 1 : asin_factor = 1
+            #a = asin(spoke_width/mount_radius/2)
+            a = asin(asin_factor)
+            points += [ point_on_circle(mount_radius, start_a + a), point_on_circle(mount_radius, end_a - a)]
+            # outer circle near gear
+            
+##            try:
+##                a = asin(spoke_width/r_outer/2)
+##            except:
+##                print >> sys.stderr, "error: Spoke width is too large:", spoke_width/unit_factor, "max=", r_outer*2/unit_factor
+            
+            # a better way to do this might be to decrease local spoke width to be smaller by epsilon than r_outer
+            # this soln prevents blowout but does not make a useful result. (see above)
+            asin_factor = spoke_width/r_outer/2
+            # check if need to clamp radius
+            if asin_factor > 1 : asin_factor = 1
+            a = asin(asin_factor)
+            points += [point_on_circle(r_outer, end_a - a), point_on_circle(r_outer, start_a + a) ]
 
             path += (
                     "M %f,%f" % points[0] +
-                    "A  %f,%f %s %s %s %f,%f" % tuple((mount_radius, mount_radius, 0, 0 if holes_count!=1 else 1, 1 ) + points[1]) +
+                    "A  %f,%f %s %s %s %f,%f" % tuple((mount_radius, mount_radius, 0, 0 if spoke_count!=1 else 1, 1 ) + points[1]) +
                     "L %f,%f" % points[2] +
-                    "A  %f,%f %s %s %s %f,%f" % tuple((r_outer, r_outer, 0, 0 if holes_count!=1 else 1, 0 ) + points[3]) +
+                    "A  %f,%f %s %s %s %f,%f" % tuple((r_outer, r_outer, 0, 0 if spoke_count!=1 else 1, 0 ) + points[3]) +
                     "Z"
                     )
 
         # Draw mount hole
         # A : rx,ry  x-axis-rotation, large-arch-flag, sweepflag  x,y
-        r = mount_hole/2
+        r = mount_hole / 2
         path += (
                 "M %f,%f" % (0,r) +
                 "A  %f,%f %s %s %s %f,%f" % (r,r, 0,0,0, 0,-r) +
@@ -401,68 +494,71 @@ class Gears(inkex.Effect):
         # Embed gear in group to make animation easier:
         #  Translate group, Rotate path.
         t = 'translate(' + str( self.view_center[0] ) + ',' + str( self.view_center[1] ) + ')'
-        g_attribs = {inkex.addNS('label','inkscape'):'Gear' + str( teeth ),
-                     inkex.addNS('transform-center-x','inkscape'): str(-bbox_center[0]),
-                     inkex.addNS('transform-center-y','inkscape'): str(-bbox_center[1]),
-                     'transform':t,
-                     'info':'N:'+str(teeth)+'; Pitch:'+ str(pitch) + '; Pressure Angle: '+str(angle) }
+        g_attribs = { inkex.addNS('label','inkscape'):'Gear' + str( teeth ),
+                      inkex.addNS('transform-center-x','inkscape'): str(-bbox_center[0]),
+                      inkex.addNS('transform-center-y','inkscape'): str(-bbox_center[1]),
+                      'transform':t,
+                      'info':'N:'+str(teeth)+'; Pitch:'+ str(pitch) + '; Pressure Angle: '+str(angle) }
         # add the group to the current layer
         g = inkex.etree.SubElement(self.current_layer, 'g', g_attribs )
 
-        # Create SVG Path for gear
-        style = { 'stroke': '#000000', 'fill': 'none' }
-        gear_attribs = {'style':simplestyle.formatStyle(style), 'd':path }
+        # Create SVG Path for gear under top level group
+        style = { 'stroke': path_stroke, 'fill': path_fill, 'stroke-width': path_stroke_width }
+        gear_attribs = { 'style': simplestyle.formatStyle(style), 'd': path }
         gear = inkex.etree.SubElement(g, inkex.addNS('path','svg'), gear_attribs )
 
         # Add center
         if centercross:
-            style = { 'stroke': '#000000', 'fill': 'none', 'stroke-width':0.1 }
-            cs = str(pitch/3) # centercross size
+            style = { 'stroke': path_stroke, 'fill': path_fill, 'stroke-width': path_stroke_width / 5.0 }
+            cs = str(pitch / 3) # centercross length
             d = 'M-'+cs+',0L'+cs+',0M0,-'+cs+'L0,'+cs  # 'M-10,0L10,0M0,-10L0,10'
-            center_attribs = {inkex.addNS('label','inkscape'):'Center cross','style':simplestyle.formatStyle(style), 'd':d}
+            center_attribs = { inkex.addNS('label','inkscape'): 'Center cross',
+                               'style': simplestyle.formatStyle(style), 'd': d }
             center = inkex.etree.SubElement(g, inkex.addNS('path','svg'), center_attribs )
 
         # Add pitch circle (for mating)
         if pitchcircle:
-            draw_SVG_circle(pitch_radius,0,0, 'none', 0.1, 'Pitch circle', g )
-            # Add Annotation (above)
-            if self.options.annotation:
-                notes =['Teeth: %d   Pitch: %2.4f' % (teeth, pitch),
-                        'Pressure Angle: %2.4f' % (angle),
-                        'Pitch diameter: %2.4f' % (pitch_diameter),
-                        'Outer diameter: %2.4f' % (outer_diameter),
-                        'Base diameter: %2.4f'  % (base_diameter),
-                        'Addendum: %2.4f'  % (addendum),
-                        'Dedendum: %2.4f'  % (dedendum)
-                        ]
-                text_height = 22
-                # position above
-                y = - outer_radius - (len(notes)+1) * text_height * 1.2
-                for note in notes:
-                    self.add_text(g, note, [0,y], text_height)
-                    y += text_height * 1.2
+            style = { 'stroke': path_stroke, 'fill': path_fill, 'stroke-width': path_stroke_width / 5.0 }
+            draw_SVG_circle(g, pitch_radius, 0, 0, 'Pitch circle', style)
 
-        # Draw rack (below)
+        # Add Rack (below)
         if self.options.drawrack:
-            base_height = self.options.base_height * units
-            tab_width = self.options.base_tab * units
+            base_height = self.options.base_height * unit_factor
+            tab_width = self.options.base_tab * unit_factor
             tooth_count = self.options.teeth_length
-            path = generate_rack_path(tooth_count, pitch, angle,
-                                      base_height, tab_width)
+            path = generate_rack_path(tooth_count, tooth, angle,
+                                      base_height, tab_width, clearance, pitchcircle)
             # position below Gear
-            t = 'translate(' + str( 0 ) + ',' + str( outer_radius + addendum*2) + ')'
-            g_attribs = {
-                inkex.addNS('label', 'inkscape'): 'RackGear' + str(tooth_count),
-                'transform': t}
+            t = 'translate(' + str( 0 ) + ',' + str( outer_radius + (addendum + clearance)*2) + ')'
+            g_attribs = { inkex.addNS('label', 'inkscape'): 'RackGear' + str(tooth_count),
+                          'transform': t }
             rack = inkex.etree.SubElement(g, 'g', g_attribs)
 
             # Create SVG Path for gear
-            style = {'stroke': '#000000', 'fill': 'none'}
-            gear_attribs = {
-                'style': simplestyle.formatStyle(style),
-                'd': path}
+            style = {'stroke': path_stroke, 'fill': 'none', 'stroke-width': path_stroke_width}
+            gear_attribs = { 'style': simplestyle.formatStyle(style),
+                             'd': path }
             gear = inkex.etree.SubElement(
-                rack, inkex.addNS('path', 'svg'), gear_attribs)   
+                rack, inkex.addNS('path', 'svg'), gear_attribs)
+
+        # Add Annotations (above)
+        if self.options.annotation:
+            notes =['Document (%s) scale conversion = %2.4f' % (self.document.getroot().find(inkex.addNS('namedview', 'sodipodi')).get(inkex.addNS('document-units', 'inkscape')),
+                                                                unit_factor),
+                    'Teeth: %d   Pitch: %2.4f' % (teeth, pitch),
+                    'Pressure Angle: %2.4f' % (angle),
+                    'Pitch diameter: %2.4f' % (pitch_diameter),
+                    'Outer diameter: %2.4f' % (outer_diameter),
+                    'Base diameter: %2.4f'  % (base_diameter),
+                    'Addendum: %2.4f'  % (addendum),
+                    'Dedendum: %2.4f'  % (dedendum)
+                    ]
+            text_height = 22
+            # position above
+            y = - outer_radius - (len(notes)+1) * text_height * 1.2
+            for note in notes:
+                self.add_text(g, note, [0,y], text_height)
+                y += text_height * 1.2
 
 if __name__ == '__main__':
     e = Gears()
@@ -470,29 +566,3 @@ if __name__ == '__main__':
 
 # Notes
 
-# add to center hole a D for a key (width, height defined on pg 737
-##def generate_gear_path(teeth_count, module, pressure_angle, mount_hole_dia,
-##                       clearance=0, unit_factor=1,
-##                       mount_radius=0, spoke_count=0, spoke_border=0,
-##                       accuracy=20, draw_guides=False,
-##                       ):
-##        """ returns a path (for svg) of the gear where:
-##            - unit_factor is precomputed based on document and dialog dimension
-##            - spoke_count equivalent to hole_count
-##            - draw_guides shows both centercross and pitch circle.
-##            Missing parameters:
-##            - key - an (x,y) tuple of box shape to cut out of mount hole
-##            - spoke_rounding - for smoother internal hole corners
-##            - 
-##        """
-##        # Calls a function to calculate pitch circle (so can be called to show layout of simplified gears)
-##        # - draw pitch circle using draw_SVG_circle()
-##        pass
-##
-##def generate_rack_path(teeth_count, module, pressure_angle, tab_length,
-##                       clearance=0, unit_factor=1,
-##                       accuracy=20, draw_guides=False
-##                      ):
-##        """ Just draw the rack """
-##        pass
-### and perhaps: generate_ring_path
