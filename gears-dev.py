@@ -96,12 +96,12 @@ def gear_calculations(num_teeth, metric, module, circular_pitch, pressure_angle,
         # have unneccssary duplicates for inch/metric
         #  probably only one needs to be calculated.
         #  I.e. calc module and derive rest from there.
-        #  or calc dp
-        diametral_pitch = 25.4 / module # dp in inches
+        #  or calc dp ?
+        diametral_pitch = 25.4 / module # dp in inches but does it have to be - probably not
         pitch_diameter = module * num_teeth
         addendum = module
         #dedendum = 1.157 * module # what is 1.157 ?? a clearance calc ?
-        dedendum = module + clearance # or maybe ?? max(module + clearance, 1.157 * module)
+        dedendum = module + clearance # or maybe combine?  max(module + clearance, 1.157 * module)
         working_depth = 2 * module
         whole_depth = 2.157 * module
         outside_diameter = module * (num_teeth + 2)
@@ -112,12 +112,19 @@ def gear_calculations(num_teeth, metric, module, circular_pitch, pressure_angle,
         dedendum = 1.157 / diametral_pitch # ?? number from ?
         working_depth = 2 / diametral_pitch
         whole_depth = 2.157 / diametral_pitch
-        outside_diameter = (teeth + 2) / diametral_pitch
+        outside_diameter = (num_teeth + 2) / diametral_pitch
     #
-    base_diameter = pitch_diameter * cos(pressure_angle)
+    pitch_radius = pitch_diameter / 2.0
+    base_radius = pitch_diameter * cos(pressure_angle) / 2.0
+    outer_radius = pitch_radius + addendum
+    root_radius =  pitch_radius - dedendum
+    # Tooth thickness: Tooth width along pitch circle.
+    tooth_thickness  = ( pi * pitch_diameter ) / ( 2.0 * num_teeth )
     #
-    return (diametral_pitch, pitch_diameter, addendum, dedendum,
-            working_depth, whole_depth, outside_diameter, base_diameter)
+    return (pitch_radius, base_radius,
+            addendum, dedendum, outer_radius, root_radius,
+            tooth_thickness
+            )
 
  
 
@@ -398,6 +405,12 @@ class Gears(inkex.Effect):
         root_radius =  pitch_radius - dedendum
         root_diameter = root_radius * 2.0
 
+        # attempt at using base_calc function but scale errors
+##        (pitch_radius, base_radius,
+##        addendum, dedendum,
+##        outer_radius, root_radius,
+##        tooth) = gear_calculations(teeth, use_metric_module, self.options.module, pitch, angle, clearance)
+##        inkex.debug(tooth)
         # All base calcs done. Start building gear
         
         half_thick_angle = two_pi / (4.0 * teeth ) #?? = pi / (2.0 * teeth)
