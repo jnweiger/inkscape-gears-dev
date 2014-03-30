@@ -47,7 +47,7 @@
 			<param name="rack-teeth-length" type="int"   min="1"   max="500" _gui-text="Rack Length (teeth)">10</param>
 			<param name="rack-base-height"  type="float" min="0.1" max="100"	 precision="3"	_gui-text="Height of Base">5</param>
 			<param name="rack-base-tab"     type="float" min="0"   max="100"	 precision="3"	_gui-text="Length of end tab">5</param>
-			<_param name="packing"     type="description" xml:space="preserve">The matching Rack gear
+			<_param name="packing"     type="description" xml:space="preserve">The matching Rack gear is drawn additionally and below the spur gear.
 			
 			
 			

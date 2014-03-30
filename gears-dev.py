@@ -348,7 +348,7 @@ class Gears(inkex.Effect):
                 else:            accuracy_involute = 6
             else:
                 accuracy_involute = self.options.accuracy
-            accuracy_circular = min(3, int(self.options.accuracy) / 2 - 1) # never less than three
+            accuracy_circular = max(3, int(accuracy_involute/2) - 1) # never less than three
 ##            if accuracy_circular < 3: accuracy_circular = 3
 ##            # replaced following by doing unit_factor above
 ##            if units == 0.0:
@@ -357,6 +357,7 @@ class Gears(inkex.Effect):
 ##                else:
 ##                    units = 1
             #
+        print >>self.tty, "accuracy_circular=%s accuracy_involute=%s" % (accuracy_circular, accuracy_involute)
 
         if use_metric_module:
         # options.pitch is metric modules, we need circular pitch
