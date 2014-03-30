@@ -120,10 +120,10 @@ class Gears(inkex.Effect):
 						dest="mount_hole", default=5,
 						help="Mount hole diameter")
 
-		self.OptionParser.add_option("", "--mount_radius",
+		self.OptionParser.add_option("", "--mount_diameter",
 						action="store", type="float",
-						dest="mount_radius", default=15,
-						help="mount support radius")
+						dest="mount_diameter", default=15,
+						help="mount support diameter")
 
 		self.OptionParser.add_option("", "--holes-count",
 						action="store", type="int",
@@ -185,7 +185,7 @@ class Gears(inkex.Effect):
 		angle = self.options.angle # Angle of tangent to tooth at circular pitch wrt radial line.
 
 		mount_hole = self.options.mount_hole * units
-		mount_radius = self.options.mount_radius * units
+		mount_radius = self.options.mount_diameter * 0.5 * units
 
 		holes_count = self.options.holes_count
 		holes_rounding = self.options.holes_rounding * units
