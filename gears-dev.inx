@@ -1,68 +1,106 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <inkscape-extension xmlns="http://www.inkscape.org/namespace/inkscape/extension">
-    <_name>Gear-dev</_name>
-    <id>org.ekips.filter.gears-dev</id>
-    <dependency type="executable" location="extensions">gears-dev.py</dependency>
-    <dependency type="executable" location="extensions">inkex.py</dependency>
-   	<param name='active-tab' type="notebook">
-   		<page name='Gear' _gui-text='Gears'>
-			<param name="teeth"     type="int"     min="5"    max="1200"    _gui-text="Number of teeth (5..1200)">24</param>
-			<param name="pitch"     type="float"   min="0.0"  max="10000.0"	precision="5"	_gui-text="Circular pitch / Metric Module">20.0</param>
-			<param name="metric"    type="boolean" _gui-text="Metric Module instead of CP">false</param>
-			<param name="angle"     type="float"   min="5.0"  max="45.0"   	precision="5"	_gui-text="Pressure angle (5..45)">20.0</param>
-			<param name="clearance" type="float"   _gui-text="Clearance" min="0" max="100" precision="5">0</param>
-			<param name="clearance_help" type="description">Clearance between bottom of gap of this gear and top of tooth of another</param>
-			<param name="units" type="enum" _gui-text="Units:">
-				<item value="1">px</item>
-				<item value="3.5433070866">mm</item>
-				<item value="90">in</item>
-				<item value="1.25">pt</item>
+	<_name>Gear-dev</_name>
+	<id>org.ekips.filter.gears-dev</id>
+	<dependency type="executable" location="extensions">gears-dev.py</dependency>
+	<dependency type="executable" location="extensions">inkex.py</dependency>
+	<param name='active-tab' type="notebook">
+		<page name="Gear" _gui-text="Gears">
+			<param name="teeth"     type="int"     min="3"    max="1200"    _gui-text="Number of teeth (3..1200)">24</param>
+			<param name="metric_or_pitch"  _gui-text="Traditional or Metric" type="optiongroup">
+				<_option value="useCP">Use Circular Pitch</_option>
+				<_option value="useMetric">Use Metric Module</_option>
 			</param>
+			<param name="pitch"     type="float"   min="0.1"  max="10000.0"	precision="5"	_gui-text="              Circular pitch(inches)">20.0</param>
+			<param name="module"    type="float"   min="0.1"  max="1000.0"	precision="5"	_gui-text="              Metric Module">1.25</param>
+			<_param name="help"     type="description" xml:space="preserve">------------------------------</_param>
+			<param name="angle"     type="float"   min="5.0"  max="45.0"   	precision="5"	_gui-text="Pressure angle (5..45)">20.0</param>
+			<param name="clearance" type="float"   min="0"    max="100"     precision="3"	_gui-text="Clearance (bottom)">0</param>
+			<param name="units"     type="optiongroup" appearance="minimal" _gui-text="Units">
+				<option value="px">px</option>
+				<option value="pt">pt</option>
+				<option value="in">in</option>
+				<option value="cm">cm</option>
+				<option value="mm">mm</option></param>
+			<param name="annotation" type="boolean" _gui-text="Draw annotation text">false</param>
 		</page>	
-		
-   		<page name='advanced' _gui-text='Advanced options'>
-			<param name="mount-hole"		type="float" min="0"    max="100"	precision="5"	_gui-text="Mount hole diameter">5</param>
-			<param name="mount_radius"		type="float" min="0"    max="1000"	precision="5"	_gui-text="Mount support diameter">15</param>
-			<param name="holes-count"		type="int"   min="0"    max="100"	_gui-text="Number of holes">3</param>
-			<param name="holes-border"		type="float" min="1"    max="1000"	precision="5"	_gui-text="Holes border width">5</param>
-                        <!-- unused parameter
+		<page name='advanced' _gui-text='Advanced options'>
+			<param name="mount-hole"		type="float" min="0.01" max="100"	precision="3"	_gui-text="Mount hole diameter">5</param>
+			<param name="spoke-count"		type="int"   min="0"    max="100"	_gui-text="Number of spokes">3</param>
+			<param name="spoke-width"		type="float" min="1"    max="1000"	precision="3"	_gui-text="Spoke width">5</param>
+			<param name="mount_radius"		type="float" min="1"    max="1000"	precision="3"	_gui-text="Mount support diameter">15</param>
+	<!-- unused parameter
 			<param name="holes-rounding"	type="float" min="0"    max="1000"	precision="5"	_gui-text="Holes rounding">5</param>
-                        -->
+	-->
 			<param name="centercross" type="boolean" _gui-text="Draw center cross">false</param>
 			<param name="pitchcircle" type="boolean" _gui-text="Draw pitch circle (for meshing)">false</param>
 			<param name="accuracy" type="enum" _gui-text="Tooth Accuracy:">
 				<item value="0">automatic</item>
-				<item value="20">best: 20 points</item>
+				<item value="20">best:   20 points</item>
 				<item value="12">medium: 12 points</item>
-				<item value="6">low: 6 points</item>
+				<item value="6">low:      6 points</item>
 			</param>
-			<param name="accuracy_help" type="description">Good accuracy is important with a low tooth count</param>
-			<effect>
-			<object-type>all</object-type>
-				<effects-menu>
-				    <submenu _name="Render"/>
-				</effects-menu>						    		
-			</effect>
-			<script>
-				<command reldir="extensions" interpreter="python">gears-dev.py</command>
-			</script>
+			<_param name="help" type="description">More accuracy is important with a low tooth count</_param>
 		</page>
-		<page name="Usage" _gui-text="Usage">
-			<_param name="gearuse" type="description" xml:space="preserve">Gears:
+		<page name='rack' _gui-text='Rack'>
+			<param name="draw-rack"     type="boolean" _gui-text="Draw Rack">false</param>
+			<param name="rack-teeth-length" type="int"   min="1"   max="500" _gui-text="Rack Length (teeth)">10</param>
+			<param name="rack-base-height"  type="float" min="0.1" max="100"	 precision="3"	_gui-text="Height of Base">5</param>
+			<param name="rack-base-tab"     type="float" min="0"   max="100"	 precision="3"	_gui-text="Length of end tab">5</param>
+			<_param name="packing"     type="description" xml:space="preserve">The matching Rack gear
 			
-The apparent diameter changes based on the number of teeth and the Circular Pitch.
-Circular pitch is the arc length from one tooth to the next.
-
-If Metric is selected then the pitch is metric (mm) rather than Circular Pitch.
-
-Common Pressure angles are 14.5, 20, 25 and are in degrees. 20 is common.
-
-	
-	
-		</_param>
+			
+			
+			
+			
+			
+			
+			
+			
+			
+			</_param>
 		</page>
-	</param>	
+		<page name="Usage1" _gui-text="Usage-core">
+			<_param name="gearuse" type="description" xml:space="preserve">Gears:
+Be sure to set the document properties to inches or mm if you want real-world dimensions.
 
+For gears to mesh - the size of the teeth on each gear must be the same.
+This is why tooth count and Circular Pitch or Module is used to define gears and not radius.
+
+The Circular Pitch, p, is the distance between adjacent teeth around the Pitch Circle.
+  p = pi * D / z
+- where z is the number of teeth on a gear of pitch diameter D.
+The SI measure is the Module - which expresses the core ratio of Pitch Diameter to number of Teeth:
+  m = p / pi = D / z
+
+where:
+- Pitch Circle: Radius is equal to the distance from the center of the gear to the pitch point.
+- Pitch Point:  The point of tangency of the pitch circles of two meshing gears.
+			</_param>
+		</page>
+		<page name="Usage2" _gui-text="Usage-adv">
+			<_param name="gearuse2" type="description" xml:space="preserve">Gears:
+Pressure angles are in degrees. Usually - 14.5(historical), 20(common and stronger), 25.
+The higher the pitch angle, the more effort to turn the gear but stronger teeth.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+			</_param>
+		</page>
+	</param>
 	<effect>
 	<object-type>all</object-type>
 		<effects-menu>
