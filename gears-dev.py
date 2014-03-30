@@ -308,7 +308,7 @@ class Gears(inkex.Effect):
         namedView = self.document.getroot().find(inkex.addNS('namedview', 'sodipodi'))
         doc_units = inkex.uutounit(1.0, namedView.get(inkex.addNS('document-units', 'inkscape')))
         dialog_units = inkex.uutounit(1.0, this_units)
-        inkex.debug("docunits = %s dialog units = %s factor = %s" % (doc_units, dialog_units, doc_units/dialog_units))
+        # inkex.debug("docunits = %s dialog units = %s factor = %s" % (doc_units, dialog_units, doc_units/dialog_units))
         return (doc_units/dialog_units)
         
 
