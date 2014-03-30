@@ -86,6 +86,7 @@ def draw_SVG_circle(parent, r, cx, cy, name, style):
                     inkex.addNS('label','inkscape'):name}
     circle = inkex.etree.SubElement(parent, inkex.addNS('circle','svg'), circ_attribs )
 
+## unused code. arbitrary constants 2.157 and 1.157 are not acceptable.
 def gear_calculations(num_teeth, metric, module, circular_pitch, pressure_angle, clearance):
     """ intention is to put base calcs for gear in one place.
         - does not calc for stub teeth just regular
@@ -307,7 +308,7 @@ class Gears(inkex.Effect):
         namedView = self.document.getroot().find(inkex.addNS('namedview', 'sodipodi'))
         doc_units = inkex.uutounit(1.0, namedView.get(inkex.addNS('document-units', 'inkscape')))
         dialog_units = inkex.uutounit(1.0, this_units)
-        #inkex.debug("docunits = %s dialog units = %s factor = %s" % (doc_units, dialog_units, doc_units/dialog_units))
+        inkex.debug("docunits = %s dialog units = %s factor = %s" % (doc_units, dialog_units, doc_units/dialog_units))
         return (doc_units/dialog_units)
         
 
@@ -323,6 +324,15 @@ class Gears(inkex.Effect):
         # Debug using:  inkex.debug( "angle=%s pitch=%s" % (angle, pitch) )
         # take into account document dimensions and units in dialog. - calc factor
         unit_factor = self.calc_units_factor(self.options.units)
+        use_metric_module = self.options.metric_or_pitch == 'useMetric'
+        if use_metric_module:
+            print >>self.tty, "applying use_metric_module hack"
+            # sorry, I don't understand the calc_units_factor() logic.
+            # It obviously does not take into account that
+            # an inkscape svg unit is at 90 dpi regardless what the users wish for
+            # document units are. I have everything set to mm, document and gears-dev.
+            unit_factor *= 90/25.4
+
         teeth = self.options.teeth
         angle = self.options.angle # Angle of tangent to tooth at circular pitch wrt radial line.
         # Clearance: Radial distance between top of tooth on one gear to bottom of gap on another.
@@ -347,13 +357,13 @@ class Gears(inkex.Effect):
 ##                else:
 ##                    units = 1
             #
-            use_metric_module = self.options.metric_or_pitch == 'useMetric'
-            if use_metric_module:
-            # options.pitch is metric modules, we need circular pitch
-                pitch = self.options.module * unit_factor * pi
-            else:
-                #pitch = inkex.uutounit(self.options.pitch,'in') * unit_factor # wrong!
-                pitch = self.options.pitch * unit_factor # wrong! (see first annotation - compare values with real table)
+
+        if use_metric_module:
+        # options.pitch is metric modules, we need circular pitch
+            pitch = self.options.module * unit_factor * pi
+        else:
+            #pitch = inkex.uutounit(self.options.pitch,'in') * unit_factor # wrong!
+            pitch = self.options.pitch * unit_factor # wrong! (see first annotation - compare values with real table)
         
         mount_hole = self.options.mount_hole * unit_factor
         mount_radius = self.options.mount_diameter * 0.5 * unit_factor
