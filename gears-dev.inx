@@ -7,7 +7,7 @@
 	<param name='active-tab' type="notebook">
 		<page name="Gear" _gui-text="Gears">
 			<param name="teeth"     type="int"     min="3"    max="1200"    _gui-text="Number of teeth (3..1200)">24</param>
-			<param name="metric_or_pitch"  _gui-text="Traditional or Metric" type="optiongroup">
+			<param name="metric-or-pitch"  _gui-text="Traditional or Metric" type="optiongroup">
 				<_option value="useCP">Use Circular Pitch</_option>
 				<_option value="useMetric">Use Metric Module</_option>
 			</param>
@@ -27,8 +27,8 @@
 		<page name='advanced' _gui-text='Advanced options'>
 			<param name="mount-hole"		type="float" min="0.01" max="100"	precision="3"	_gui-text="Mount hole diameter">5</param>
 			<param name="spoke-count"		type="int"   min="0"    max="100"	_gui-text="Number of spokes">3</param>
-			<param name="spoke-width"		type="float" min="1"    max="1000"	precision="3"	_gui-text="Spoke width">5</param>
-			<param name="mount_radius"		type="float" min="1"    max="1000"	precision="3"	_gui-text="Mount support diameter">15</param>
+			<param name="spoke-width"		type="float" min="1"    max="1000"	precision="3"	_gui-text="Spoke (and rim) width">5</param>
+			<param name="mount-diameter"		type="float" min="1"    max="1000"	precision="3"	_gui-text="Mount support diameter">15</param>
 	<!-- unused parameter
 			<param name="holes-rounding"	type="float" min="0"    max="1000"	precision="5"	_gui-text="Holes rounding">5</param>
 	-->
@@ -62,10 +62,11 @@
 		</page>
 		<page name="Usage1" _gui-text="Usage-core">
 			<_param name="gearuse" type="description" xml:space="preserve">Gears:
+
 Be sure to set the document properties to inches or mm if you want real-world dimensions.
 
 For gears to mesh - the size of the teeth on each gear must be the same.
-This is why tooth count and Circular Pitch or Module is used to define gears and not radius.
+This is why tooth count and Circular Pitch or Metric Module is used to define gears and not radius.
 
 The Circular Pitch, p, is the distance between adjacent teeth around the Pitch Circle.
   p = pi * D / z
@@ -80,8 +81,8 @@ where:
 		</page>
 		<page name="Usage2" _gui-text="Usage-adv">
 			<_param name="gearuse2" type="description" xml:space="preserve">Gears:
-Pressure angles are in degrees. Usually - 14.5(historical), 20(common and stronger), 25.
-The higher the pitch angle, the more effort to turn the gear but stronger teeth.
+Pressure angle [in degrees]. Usually 20. Historical: 14.5; High torque gears: 25.
+The higher the pressure angle, the stronger the teeth. With higher pressure angles, more effort is needed to turn the gears (due to friction).
 
 
 
