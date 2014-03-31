@@ -43,11 +43,11 @@
 			<_param name="help" type="description">More accuracy is important with a low tooth count</_param>
 		</page>
 		<page name='rack' _gui-text='Rack'>
-			<param name="draw-rack"     type="boolean" _gui-text="Draw Rack">false</param>
-			<param name="rack-teeth-length" type="int"   min="1"   max="500" _gui-text="Rack Length (teeth)">10</param>
-			<param name="rack-base-height"  type="float" min="0.1" max="100"	 precision="3"	_gui-text="Height of Base">5</param>
+			<param name="draw-rack"     type="boolean" _gui-text="Draw rack">false</param>
+			<param name="rack-teeth-length" type="int"   min="1"   max="500" _gui-text="Rack length (teeth)">10</param>
+			<param name="rack-base-height"  type="float" min="0.1" max="100"	 precision="3"	_gui-text="Height of base">5</param>
 			<param name="rack-base-tab"     type="float" min="0"   max="100"	 precision="3"	_gui-text="Length of end tab">5</param>
-			<_param name="packing"     type="description" xml:space="preserve">The matching Rack gear is drawn additionally and below the spur gear.
+			<_param name="packing"     type="description" xml:space="preserve">The matching rack gear is drawn additionally and below the spur gear.
 			
 			
 			

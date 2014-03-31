@@ -146,13 +146,14 @@ def generate_rack_path(tooth_count, tooth_width, pressure_angle,
         points.append((x, 0))
         x += tab_length
         points.append((x, 0))
+        tooth_height = spacing + clearance    # just guessing - probably should be clearance + addendum
         # An involute on a circle of infinite radius is a simple linear ramp.
         # We need to add curve at bottom and use clearance.
         for i in range(tooth_count):
             # move along path, generating the next 'tooth'
             points.append((x, 0))
             points.append((x + tas, -spacing - clearance))
-            points.append((x + spacing, -spacing - clearance)) # just guessing - probably should be clearance + addendum
+            points.append((x + spacing, -tooth_height)) 
             points.append((x + spacing + tas, 0))
             x += spacing * 2.0
         x -= spacing - tas # remove last adjustment
@@ -161,12 +162,19 @@ def generate_rack_path(tooth_count, tooth_width, pressure_angle,
         x += tab_length
         points.append((x, 0))
         points.append((x, base_height)) # add end tab
-        # Draw line representing the pitch circle
+        # Draw line representing the pitch circle of infinite diameter
+        guide = None
         if draw_guides:
-            # not sure where pitch circle is
-            pass
+            # FIXME: not really correct: clearance should only contribute to
+            # the part of the tooth below the meshing guide.
+            p = []
+            p.append( (-tooth_count * spacing - 0.5 * tab_length,       
+                       -0.5 * tooth_height) )
+            p.append( ( tooth_count * spacing + 0.5 * tab_length - spacing + tas, 
+                       -0.5 * tooth_height) )
+            guide = points_to_svgd(p)
         # return points ready for use in an SVG 'path'
-        return points_to_svgd(points)
+        return (points_to_svgd(points), guide)
 
 
 class Gears(inkex.Effect):
@@ -357,7 +365,7 @@ class Gears(inkex.Effect):
 ##                else:
 ##                    units = 1
             #
-        print >>self.tty, "accuracy_circular=%s accuracy_involute=%s" % (accuracy_circular, accuracy_involute)
+        # print >>self.tty, "accuracy_circular=%s accuracy_involute=%s" % (accuracy_circular, accuracy_involute)
 
         if use_metric_module:
         # options.pitch is metric modules, we need circular pitch
@@ -549,7 +557,7 @@ class Gears(inkex.Effect):
             base_height = self.options.base_height * unit_factor
             tab_width = self.options.base_tab * unit_factor
             tooth_count = self.options.teeth_length
-            path = generate_rack_path(tooth_count, tooth, angle,
+            (path,path2) = generate_rack_path(tooth_count, tooth, angle,
                                       base_height, tab_width, clearance, pitchcircle)
             # position below Gear
             t = 'translate(' + str( 0 ) + ',' + str( outer_radius + (addendum + clearance)*2) + ')'
@@ -559,10 +567,15 @@ class Gears(inkex.Effect):
 
             # Create SVG Path for gear
             style = {'stroke': path_stroke, 'fill': 'none', 'stroke-width': path_stroke_width}
-            gear_attribs = { 'style': simplestyle.formatStyle(style),
-                             'd': path }
+            gear_attribs = { 'style': simplestyle.formatStyle(style), 'd': path }
             gear = inkex.etree.SubElement(
                 rack, inkex.addNS('path', 'svg'), gear_attribs)
+            if path2 is not None:
+                style2 = { 'stroke': path_stroke, 'fill': 'none', 'stroke-width': path_stroke_width / 5.0 }
+                gear_attribs2 = { 'style': simplestyle.formatStyle(style2), 'd': path2 }
+                gear = inkex.etree.SubElement(
+                    rack, inkex.addNS('path', 'svg'), gear_attribs2)
+
 
         # Add Annotations (above)
         if self.options.annotation:
