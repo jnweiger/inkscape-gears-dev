@@ -28,7 +28,7 @@ import inkex
 import simplestyle, sys, os
 from math import *
 
-__version__ = '0.6'
+__version__ = '0.7'
 
 def linspace(a,b,n):
     """ return list of linear interp of a to b in n steps
@@ -191,20 +191,16 @@ class Gears(inkex.Effect):
                                      dest="teeth", default=24,
                                      help="Number of teeth")
         
-        self.OptionParser.add_option("-M", "--metric-or-pitch",
+        self.OptionParser.add_option("-S", "--system",
                                      action="store", type="string", 
-                                     dest="metric_or_pitch", default='useCP',
-                                     help="Select system: 'useCP' (Traditional Cyclic Pitch (default)), 'useMetric' (Metric Module)")
+                                     dest="system", default='CP',
+                                     help="Select system: 'CP' (Cyclic Pitch (default)), 'DP' (Diametral Pitch), 'MM' (Metric Module)")
         
-        self.OptionParser.add_option("-p", "--pitch",
+        self.OptionParser.add_option("-s", "--size",
                                      action="store", type="float",
-                                     dest="pitch", default=20.0,
-                                     help="Circular Pitch (length of arc from one tooth to next)")
+                                     dest="size", default=1.0,
+                                     help="Tooth size, depending on system (which defaults to CP)")
 
-        self.OptionParser.add_option("-m", "--module",
-                                     action="store", type="float", 
-                                     dest="module", default=2.5,
-                                     help="Metric Module - ratio of diameter/teeth")
 
         self.OptionParser.add_option("-a", "--angle",
                                      action="store", type="float",
@@ -309,20 +305,35 @@ class Gears(inkex.Effect):
         line.text = text
 
            
-    def calc_units_factor(self, this_units):
-        """ given the document units and units declared in this extension's dialog
-            - return the scale factor for all dimension conversions
+    def calc_unit_factor(self):
+        """ given the document units and units declared in this extension's 
+            dialog - return the scale factor for all dimension conversions
         """
-        namedView = self.document.getroot().find(inkex.addNS('namedview', 'sodipodi'))
-        doc_units = inkex.uutounit(1.0, namedView.get(inkex.addNS('document-units', 'inkscape')))
-        dialog_units = inkex.uutounit(1.0, this_units)
-        # inkex.debug("docunits = %s dialog units = %s factor = %s" % (doc_units, dialog_units, doc_units/dialog_units))
-        return (doc_units/dialog_units)
+        # namedView = self.document.getroot().find(inkex.addNS('namedview', 'sodipodi'))
+        # doc_units = inkex.uutounit(1.0, namedView.get(inkex.addNS('document-units', 'inkscape')))
+        dialog_units = inkex.uutounit(1.0, self.options.units)
+	unit_factor = 1.0/dialog_units
+	# print >> self.tty, "unit_factor=%s, doc_units=%s, dialog_units=%s (%s), system=%s" % (unit_factor, doc_units, dialog_units, self.options.units, self.options.system)
+	if   self.options.system == 'CP': 
+	    circular_pitch = self.options.size
+	elif self.options.system == 'DP': 
+            circular_pitch = pi / self.options.size
+	elif self.options.system == 'MM': 
+	    circular_pitch = self.options.size * pi / 25.4
+	else:
+	    inkex.debug("unknown system '%s', try CP, DP, MM" % self.options.system)
+	# circular_pitch defines the size in inches.
+        # We divide the internal inch factor (px = 90dpi), to remove the inch 
+	# unit.
+	# The internal inkscape unit is always px, 
+        # it is independent of the doc_units!
+        return unit_factor, circular_pitch / inkex.uutounit(1.0, 'in')
         
 
     def effect(self):
         """ Calculate Gear factors from inputs.
-            - Make list of radii, angles, and centers for each tooth and iterate through them
+            - Make list of radii, angles, and centers for each tooth and 
+              iterate through them
             - Turn on other visual features e.g. cross, rack, annotations, etc
         """
         path_stroke = '#000000'  # might expose one day
@@ -330,20 +341,13 @@ class Gears(inkex.Effect):
         path_stroke_width  = 0.6 # might expose one day (guides are /5 thick)
         
         # Debug using:  inkex.debug( "angle=%s pitch=%s" % (angle, pitch) )
-        # take into account document dimensions and units in dialog. - calc factor
-        unit_factor = self.calc_units_factor(self.options.units)
-        use_metric_module = self.options.metric_or_pitch == 'useMetric'
-        if use_metric_module:
-            print >>self.tty, "applying use_metric_module hack"
-            # sorry, I don't understand the calc_units_factor() logic.
-            # It obviously does not take into account that
-            # an inkscape svg unit is at 90 dpi regardless what the users wish for
-            # document units are. I have everything set to mm, document and gears-dev.
-            unit_factor *= 90/25.4
-
+        # take into account document dimensions and units in dialog. 
+        unit_factor,pitch = self.calc_unit_factor()
         teeth = self.options.teeth
-        angle = self.options.angle # Angle of tangent to tooth at circular pitch wrt radial line.
-        # Clearance: Radial distance between top of tooth on one gear to bottom of gap on another.
+	# Angle of tangent to tooth at circular pitch wrt radial line.
+        angle = self.options.angle 
+        # Clearance: Radial distance between top of tooth on one gear to 
+	# bottom of gap on another.
         clearance = self.options.clearance * unit_factor
         
         accuracy_involute = 20 # Number of points of the involute curve
@@ -357,22 +361,8 @@ class Gears(inkex.Effect):
             else:
                 accuracy_involute = self.options.accuracy
             accuracy_circular = max(3, int(accuracy_involute/2) - 1) # never less than three
-##            if accuracy_circular < 3: accuracy_circular = 3
-##            # replaced following by doing unit_factor above
-##            if units == 0.0:
-##                if use_metric_module:
-##                    units = 3.5433070866 # ?? this is doing direct 90dpi adjustment
-##                else:
-##                    units = 1
-            #
         # print >>self.tty, "accuracy_circular=%s accuracy_involute=%s" % (accuracy_circular, accuracy_involute)
 
-        if use_metric_module:
-        # options.pitch is metric modules, we need circular pitch
-            pitch = self.options.module * unit_factor * pi
-        else:
-            #pitch = inkex.uutounit(self.options.pitch,'in') * unit_factor # wrong!
-            pitch = self.options.pitch * unit_factor # wrong! (see first annotation - compare values with real table)
         
         mount_hole = self.options.mount_hole * unit_factor
         mount_radius = self.options.mount_diameter * 0.5 * unit_factor

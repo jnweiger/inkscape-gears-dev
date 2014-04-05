@@ -7,40 +7,40 @@
 	<param name='active-tab' type="notebook">
 		<page name="Gear" _gui-text="Gears">
 			<param name="teeth"     type="int"     min="3"    max="1200"    _gui-text="Number of teeth (3..1200)">24</param>
-			<param name="metric-or-pitch"  _gui-text="Traditional or Metric" type="optiongroup">
-				<_option value="useCP">Use Circular Pitch</_option>
-				<_option value="useMetric">Use Metric Module</_option>
+			<param name="size"      type="float"   min="0.1"  max="1000.0"	precision="5"	_gui-text="Tooth size">1.0</param>
+			<param name="system"    _gui-text="System" type="optiongroup">
+				<_option value="MM">Metric Module</_option>
+				<_option value="CP">Circular Pitch</_option>
+				<_option value="DP">Diametral Pitch</_option>
 			</param>
-			<param name="pitch"     type="float"   min="0.1"  max="10000.0"	precision="5"	_gui-text="              Circular pitch(inches)">20.0</param>
-			<param name="module"    type="float"   min="0.1"  max="1000.0"	precision="5"	_gui-text="              Metric Module">1.25</param>
 			<_param name="help"     type="description" xml:space="preserve">------------------------------</_param>
-			<param name="angle"     type="float"   min="5.0"  max="45.0"   	precision="5"	_gui-text="Pressure angle (5..45)">20.0</param>
-			<param name="clearance" type="float"   min="0"    max="100"     precision="3"	_gui-text="Clearance (bottom)">0</param>
-			<param name="units"     type="optiongroup" appearance="minimal" _gui-text="Units">
-				<option value="px">px</option>
-				<option value="pt">pt</option>
-				<option value="in">in</option>
-				<option value="cm">cm</option>
-				<option value="mm">mm</option></param>
-			<param name="annotation" type="boolean" _gui-text="Draw annotation text">false</param>
-		</page>	
-		<page name='advanced' _gui-text='Advanced options'>
-			<param name="mount-hole"		type="float" min="0.01" max="100"	precision="3"	_gui-text="Mount hole diameter">5</param>
-			<param name="spoke-count"		type="int"   min="0"    max="100"	_gui-text="Number of spokes">3</param>
-			<param name="spoke-width"		type="float" min="1"    max="1000"	precision="3"	_gui-text="Spoke (and rim) width">5</param>
-			<param name="mount-diameter"		type="float" min="1"    max="1000"	precision="3"	_gui-text="Mount support diameter">15</param>
-	<!-- unused parameter
-			<param name="holes-rounding"	type="float" min="0"    max="1000"	precision="5"	_gui-text="Holes rounding">5</param>
-	-->
+			<param name="angle"     type="float"   min="5.0"  max="45.0"   	precision="1"	_gui-text="Pressure angle (5..45)">20.0</param>
 			<param name="centercross" type="boolean" _gui-text="Draw center cross">false</param>
 			<param name="pitchcircle" type="boolean" _gui-text="Draw pitch circle (for meshing)">false</param>
-			<param name="accuracy" type="enum" _gui-text="Tooth Accuracy:">
+			<param name="annotation"  type="boolean" _gui-text="Draw annotation text">false</param>
+		</page>	
+		<page name='advanced' _gui-text='Advanced options'>
+			<param name="units"     type="optiongroup" appearance="minimal" _gui-text="Units">
+				<option value="mm">mm</option>
+				<option value="cm">cm</option>
+				<option value="in">in</option>
+				<option value="pt">pt</option>
+				<option value="px">px</option></param>
+			<param name="clearance" type="float"   min="0"    max="100"     precision="3"	_gui-text="Clearance (bottom)">0</param>
+			<param name="mount-hole"		type="float" min="0"    max="100"	precision="3"	_gui-text="Mount hole diameter">4.0</param>
+			<param name="spoke-count"		type="int"   min="0"    max="100"	_gui-text="Number of spokes">3</param>
+			<param name="spoke-width"		type="float" min="1"    max="1000"	precision="3"	_gui-text="Spoke (and rim) width">3.0</param>
+			<param name="mount-diameter"		type="float" min="1"    max="1000"	precision="3"	_gui-text="Mount support diameter">10.0</param>
+	<!-- unused parameter
+			<param name="holes-rounding"	type="float" min="0"    max="1000"	precision="5"	_gui-text="Holes rounding">.5</param>
+	-->
+			<param name="accuracy" type="enum" _gui-text="Tooth accuracy">
 				<item value="0">automatic</item>
 				<item value="20">best:   20 points</item>
 				<item value="12">medium: 12 points</item>
 				<item value="6">low:      6 points</item>
 			</param>
-			<_param name="help" type="description">More accuracy is important with a low tooth count</_param>
+			<_param name="help" type="description">Use higher accuracy with lower tooth count. Set Number of spokes to 0 to disable. Set Mount hole diameter to 0 to disable.</_param>
 		</page>
 		<page name='rack' _gui-text='Rack'>
 			<param name="draw-rack"     type="boolean" _gui-text="Draw rack">false</param>
