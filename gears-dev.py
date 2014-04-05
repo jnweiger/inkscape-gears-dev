@@ -20,15 +20,18 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
-2014-04-20: jw@suse.de 0.2  Option --accuracy=0 for automatic added.
-2014-04-21: sent upstream: https://bugs.launchpad.net/inkscape/+bug/1295641
-2014-04-21: jw@suse.de 0.3  Fixed center of rotation for gears with odd number of teeth.
+2014-03-20: jw@suse.de 0.2  Option --accuracy=0 for automatic added.
+2014-03-21: sent upstream: https://bugs.launchpad.net/inkscape/+bug/1295641
+2014-03-21: jw@suse.de 0.3  Fixed center of rotation for gears with odd number of teeth.
+2014-04-04: jw@suse.de 0.7  Revamped calc_unit_factor(). 
+2014-04-05: jw@suse.de 0.7a Correctly positioned rack gear.
+			    The geometry above the meshing line is wrong.
 '''
 import inkex
 import simplestyle, sys, os
 from math import *
 
-__version__ = '0.7'
+__version__ = '0.7a'
 
 def linspace(a,b,n):
     """ return list of linear interp of a to b in n steps
@@ -128,50 +131,64 @@ def gear_calculations(num_teeth, metric, module, circular_pitch, pressure_angle,
 
  
 
-def generate_rack_path(tooth_count, tooth_width, pressure_angle,
+def generate_rack_path(tooth_count, pitch, addendum, pressure_angle,
                        base_height, tab_length, clearance=0, draw_guides=False):
         """ Return path (suitable for svg) of the Rack gear.
             - rack gear uses straight sides
                 - involute on a circle of infinite radius is a simple linear ramp
-            - needs adj for clearance
-            - needs to draw pitch circle line
+	    - the meshing circle touches at y = 0, 
+	    - the highest elevation of the teeth is at y = +addednum
+	    - the lowest elevation of the teeth is at y = -addednum-clearance
+	    - the base_height extends downwards from the lowest elevation.
+	    - we generate iths middle tooth exactly centered on the y=0 line.
+	      (one extra tooth on the right hand side, if nr of teeth is even)
         """
-        spacing = tooth_width # basically right...?
-        x = -tooth_count * spacing - tab_length # center rack in drawing
-        tas = tan(radians(pressure_angle)) * spacing
+        spacing = 0.5 * pitch # rolling one pitch distance on the spur gear pitch_diameter.
+        # roughly center rack in drawing, exact position is so that it meshes
+	# nicely with the spur gear.
+	# -0.5*spacing has a gap in the center.
+	# +0.5*spacing has a tooth in the center.
+	fudge = +0.5 * spacing
+
+        tas  = tan(radians(pressure_angle)) * addendum
+        tasc = tan(radians(pressure_angle)) * (addendum+clearance)
+	base_top = addendum+clearance
+	base_bot = addendum+clearance+base_height
+
+        x_lhs = -pitch * int(0.5*tooth_count-.5) - spacing - tab_length - tasc + fudge
         #inkex.debug("angle=%s spacing=%s"%(pressure_angle, spacing))
         # Start with base tab on LHS
         points = [] # make list of points
-        points.append((x, base_height))
-        points.append((x, 0))
-        x += tab_length
-        points.append((x, 0))
-        tooth_height = spacing + clearance    # just guessing - probably should be clearance + addendum
+        points.append((x_lhs, base_bot))
+        points.append((x_lhs, base_top))
+        x = x_lhs + tab_length+tasc
+
         # An involute on a circle of infinite radius is a simple linear ramp.
         # We need to add curve at bottom and use clearance.
         for i in range(tooth_count):
             # move along path, generating the next 'tooth'
-            points.append((x, 0))
-            points.append((x + tas, -spacing - clearance))
-            points.append((x + spacing, -tooth_height)) 
-            points.append((x + spacing + tas, 0))
-            x += spacing * 2.0
-        x -= spacing - tas # remove last adjustment
+	    # pitch line is at y=0. the left edge hits the pitch line at x
+            points.append((x-tasc, base_top))
+            points.append((x+tas, -addendum))
+            points.append((x+spacing-tas, -addendum))
+            points.append((x+spacing+tasc, base_top)) 
+            x += pitch
+        x -= spacing # remove last adjustment
         # add base on RHS
-        points.append((x, 0))
-        x += tab_length
-        points.append((x, 0))
-        points.append((x, base_height)) # add end tab
+	x_rhs = x+tasc+tab_length
+        points.append((x_rhs, base_top))
+        points.append((x_rhs, base_bot))
+	# We don't close the path here. Caller does it.
+        # points.append((x_lhs, base_bot))
+
         # Draw line representing the pitch circle of infinite diameter
         guide = None
         if draw_guides:
             # FIXME: not really correct: clearance should only contribute to
             # the part of the tooth below the meshing guide.
             p = []
-            p.append( (-tooth_count * spacing - 0.5 * tab_length,       
-                       -0.5 * tooth_height) )
-            p.append( ( tooth_count * spacing + 0.5 * tab_length - spacing + tas, 
-                       -0.5 * tooth_height) )
+            p.append( (x_lhs + 0.5 * tab_length, 0) )
+            p.append( (x_rhs - 0.5 * tab_length, 0) )
             guide = points_to_svgd(p)
         # return points ready for use in an SVG 'path'
         return (points_to_svgd(points), guide)
@@ -547,10 +564,15 @@ class Gears(inkex.Effect):
             base_height = self.options.base_height * unit_factor
             tab_width = self.options.base_tab * unit_factor
             tooth_count = self.options.teeth_length
-            (path,path2) = generate_rack_path(tooth_count, tooth, angle,
+            (path,path2) = generate_rack_path(tooth_count, pitch, addendum, angle,
                                       base_height, tab_width, clearance, pitchcircle)
-            # position below Gear
-            t = 'translate(' + str( 0 ) + ',' + str( outer_radius + (addendum + clearance)*2) + ')'
+            # position below Gear, so that it meshes nicely
+	    # xoff = 0			## if teeth % 4 == 2.
+	    # xoff = -0.5*pitch		## if teeth % 4 == 0.
+	    # xoff = -0.75*pitch 	## if teeth % 4 == 3.
+	    # xoff = -0.25*pitch	## if teeth % 4 == 1.
+	    xoff = (-0.5, -0.25, 0, -0.75)[teeth % 4] * pitch
+            t = 'translate(' + str( xoff ) + ',' + str( pitch_radius ) + ')'
             g_attribs = { inkex.addNS('label', 'inkscape'): 'RackGear' + str(tooth_count),
                           'transform': t }
             rack = inkex.etree.SubElement(g, 'g', g_attribs)
