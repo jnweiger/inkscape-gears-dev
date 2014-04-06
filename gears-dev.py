@@ -20,15 +20,18 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
-2014-04-20: jw@suse.de 0.2  Option --accuracy=0 for automatic added.
-2014-04-21: sent upstream: https://bugs.launchpad.net/inkscape/+bug/1295641
-2014-04-21: jw@suse.de 0.3  Fixed center of rotation for gears with odd number of teeth.
+2014-03-20: jw@suse.de 0.2  Option --accuracy=0 for automatic added.
+2014-03-21: sent upstream: https://bugs.launchpad.net/inkscape/+bug/1295641
+2014-03-21: jw@suse.de 0.3  Fixed center of rotation for gears with odd number of teeth.
+2014-04-04: jw@suse.de 0.7  Revamped calc_unit_factor(). 
+2014-04-05: jw@suse.de 0.7a Correctly positioned rack gear.
+                The geometry above the meshing line is wrong.
 '''
 import inkex
 import simplestyle, sys, os
 from math import *
 
-__version__ = '0.7'
+__version__ = '0.7a'
 
 def linspace(a,b,n):
     """ return list of linear interp of a to b in n steps
@@ -128,50 +131,65 @@ def gear_calculations(num_teeth, metric, module, circular_pitch, pressure_angle,
 
  
 
-def generate_rack_path(tooth_count, tooth_width, pressure_angle,
+def generate_rack_path(tooth_count, pitch, addendum, pressure_angle,
                        base_height, tab_length, clearance=0, draw_guides=False):
         """ Return path (suitable for svg) of the Rack gear.
             - rack gear uses straight sides
                 - involute on a circle of infinite radius is a simple linear ramp
-            - needs adj for clearance
-            - needs to draw pitch circle line
+            - the meshing circle touches at y = 0, 
+            - the highest elevation of the teeth is at y = +addendum
+            - the lowest elevation of the teeth is at y = -addendum-clearance
+            - the base_height extends downwards from the lowest elevation.
+            - we generate this middle tooth exactly centered on the y=0 line.
+              (one extra tooth on the right hand side, if nr of teeth is even)
         """
-        spacing = tooth_width # basically right...?
-        x = -tooth_count * spacing - tab_length # center rack in drawing
-        tas = tan(radians(pressure_angle)) * spacing
+
+
+        spacing = 0.5 * pitch # rolling one pitch distance on the spur gear pitch_diameter.
+        # roughly center rack in drawing, exact position is so that it meshes
+        # nicely with the spur gear.
+        # -0.5*spacing has a gap in the center.
+        # +0.5*spacing has a tooth in the center.
+        fudge = +0.5 * spacing
+
+        tas  = tan(radians(pressure_angle)) * addendum
+        tasc = tan(radians(pressure_angle)) * (addendum+clearance)
+        base_top = addendum+clearance
+        base_bot = addendum+clearance+base_height
+
+        x_lhs = -pitch * int(0.5*tooth_count-.5) - spacing - tab_length - tasc + fudge
         #inkex.debug("angle=%s spacing=%s"%(pressure_angle, spacing))
         # Start with base tab on LHS
         points = [] # make list of points
-        points.append((x, base_height))
-        points.append((x, 0))
-        x += tab_length
-        points.append((x, 0))
-        tooth_height = spacing + clearance    # just guessing - probably should be clearance + addendum
+        points.append((x_lhs, base_bot))
+        points.append((x_lhs, base_top))
+        x = x_lhs + tab_length+tasc
+
         # An involute on a circle of infinite radius is a simple linear ramp.
         # We need to add curve at bottom and use clearance.
         for i in range(tooth_count):
             # move along path, generating the next 'tooth'
-            points.append((x, 0))
-            points.append((x + tas, -spacing - clearance))
-            points.append((x + spacing, -tooth_height)) 
-            points.append((x + spacing + tas, 0))
-            x += spacing * 2.0
-        x -= spacing - tas # remove last adjustment
+            # pitch line is at y=0. the left edge hits the pitch line at x
+            points.append((x-tasc, base_top))
+            points.append((x+tas, -addendum))
+            points.append((x+spacing-tas, -addendum))
+            points.append((x+spacing+tasc, base_top)) 
+            x += pitch
+        x -= spacing # remove last adjustment
         # add base on RHS
-        points.append((x, 0))
-        x += tab_length
-        points.append((x, 0))
-        points.append((x, base_height)) # add end tab
+        x_rhs = x+tasc+tab_length
+        points.append((x_rhs, base_top))
+        points.append((x_rhs, base_bot))
+        # We don't close the path here. Caller does it.
+        # points.append((x_lhs, base_bot))
         # Draw line representing the pitch circle of infinite diameter
         guide = None
         if draw_guides:
             # FIXME: not really correct: clearance should only contribute to
             # the part of the tooth below the meshing guide.
             p = []
-            p.append( (-tooth_count * spacing - 0.5 * tab_length,       
-                       -0.5 * tooth_height) )
-            p.append( ( tooth_count * spacing + 0.5 * tab_length - spacing + tas, 
-                       -0.5 * tooth_height) )
+            p.append( (x_lhs + 0.5 * tab_length, 0) )
+            p.append( (x_rhs - 0.5 * tab_length, 0) )
             guide = points_to_svgd(p)
         # return points ready for use in an SVG 'path'
         return (points_to_svgd(points), guide)
@@ -312,22 +330,22 @@ class Gears(inkex.Effect):
         # namedView = self.document.getroot().find(inkex.addNS('namedview', 'sodipodi'))
         # doc_units = inkex.uutounit(1.0, namedView.get(inkex.addNS('document-units', 'inkscape')))
         dialog_units = inkex.uutounit(1.0, self.options.units)
-	unit_factor = 1.0/dialog_units
-	# print >> self.tty, "unit_factor=%s, doc_units=%s, dialog_units=%s (%s), system=%s" % (unit_factor, doc_units, dialog_units, self.options.units, self.options.system)
-	if   self.options.system == 'CP': 
-	    circular_pitch = self.options.size
-	elif self.options.system == 'DP': 
-            circular_pitch = pi / self.options.size
-	elif self.options.system == 'MM': 
-	    circular_pitch = self.options.size * pi / 25.4
-	else:
-	    inkex.debug("unknown system '%s', try CP, DP, MM" % self.options.system)
-	# circular_pitch defines the size in inches.
+        unit_factor = 1.0/dialog_units
+        # print >> self.tty, "unit_factor=%s, doc_units=%s, dialog_units=%s (%s), system=%s" % (unit_factor, doc_units, dialog_units, self.options.units, self.options.system)
+        if   self.options.system == 'CP': # circular pitch
+            circular_pitch = self.options.size
+        elif self.options.system == 'DP': # diametral pitch 
+                circular_pitch = pi / self.options.size
+        elif self.options.system == 'MM': # module (metric)
+            circular_pitch = self.options.size * pi / 25.4
+        else:
+            inkex.debug("unknown system '%s', try CP, DP, MM" % self.options.system)
+        # circular_pitch defines the size in inches.
         # We divide the internal inch factor (px = 90dpi), to remove the inch 
-	# unit.
-	# The internal inkscape unit is always px, 
+        # unit.
+        # The internal inkscape unit is always px, 
         # it is independent of the doc_units!
-        return unit_factor, circular_pitch / inkex.uutounit(1.0, 'in')
+        return unit_factor, circular_pitch / inkex.uutounit(1.0, 'in') #unit_factor #/ 
         
 
     def effect(self):
@@ -342,12 +360,12 @@ class Gears(inkex.Effect):
         
         # Debug using:  inkex.debug( "angle=%s pitch=%s" % (angle, pitch) )
         # take into account document dimensions and units in dialog. 
-        unit_factor,pitch = self.calc_unit_factor()
+        unit_factor, pitch = self.calc_unit_factor()
         teeth = self.options.teeth
-	# Angle of tangent to tooth at circular pitch wrt radial line.
+    # Angle of tangent to tooth at circular pitch wrt radial line.
         angle = self.options.angle 
         # Clearance: Radial distance between top of tooth on one gear to 
-	# bottom of gap on another.
+    # bottom of gap on another.
         clearance = self.options.clearance * unit_factor
         
         accuracy_involute = 20 # Number of points of the involute curve
@@ -550,6 +568,11 @@ class Gears(inkex.Effect):
             (path,path2) = generate_rack_path(tooth_count, tooth, angle,
                                       base_height, tab_width, clearance, pitchcircle)
             # position below Gear
+            # xoff = 0          ## if teeth % 4 == 2.
+            # xoff = -0.5*pitch     ## if teeth % 4 == 0.
+            # xoff = -0.75*pitch    ## if teeth % 4 == 3.
+            # xoff = -0.25*pitch    ## if teeth % 4 == 1.
+            xoff = (-0.5, -0.25, 0, -0.75)[teeth % 4] * pitch
             t = 'translate(' + str( 0 ) + ',' + str( outer_radius + (addendum + clearance)*2) + ')'
             g_attribs = { inkex.addNS('label', 'inkscape'): 'RackGear' + str(tooth_count),
                           'transform': t }
@@ -569,15 +592,16 @@ class Gears(inkex.Effect):
 
         # Add Annotations (above)
         if self.options.annotation:
-            notes =['Document (%s) scale conversion = %2.4f' % (self.document.getroot().find(inkex.addNS('namedview', 'sodipodi')).get(inkex.addNS('document-units', 'inkscape')),
-                                                                unit_factor),
-                    'Teeth: %d   Pitch: %2.4f' % (teeth, pitch),
-                    'Pressure Angle: %2.4f' % (angle),
-                    'Pitch diameter: %2.4f' % (pitch_diameter),
-                    'Outer diameter: %2.4f' % (outer_diameter),
-                    'Base diameter: %2.4f'  % (base_diameter),
-                    'Addendum: %2.4f'  % (addendum),
-                    'Dedendum: %2.4f'  % (dedendum)
+            notes =[#'Document (%s) scale conversion = %2.4f' % (self.document.getroot().find(inkex.addNS('namedview', 'sodipodi')).get(inkex.addNS('document-units', 'inkscape')),
+                    #                                            unit_factor),
+                    'Teeth: %d   CP: %2.4f(%s) ' % (teeth, pitch / unit_factor, self.options.units),
+                    'DP: %2.4f Module: %2.4f' %(pi / pitch * unit_factor, pitch / pi * 25.4),
+                    'Pressure Angle: %2.4f degrees' % (angle),
+                    'Pitch diameter: %2.4f%s' % (pitch_diameter / unit_factor, self.options.units),
+                    'Outer diameter: %2.4f%s' % (outer_diameter / unit_factor, self.options.units),
+                    'Base diameter: %2.4f%s'  % (base_diameter / unit_factor, self.options.units)#,
+##                    'Addendum: %2.4f%s'  % (addendum / unit_factor, self.options.units),
+##                    'Dedendum: %2.4f%s'  % (dedendum / unit_factor, self.options.units)
                     ]
             text_height = 22
             # position above

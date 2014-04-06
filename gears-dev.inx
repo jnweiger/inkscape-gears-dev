@@ -7,11 +7,11 @@
 	<param name='active-tab' type="notebook">
 		<page name="Gear" _gui-text="Gears">
 			<param name="teeth"     type="int"     min="3"    max="1200"    _gui-text="Number of teeth (3..1200)">24</param>
-			<param name="size"      type="float"   min="0.1"  max="1000.0"	precision="5"	_gui-text="Tooth size">1.0</param>
-			<param name="system"    _gui-text="System" type="optiongroup">
-				<_option value="MM">Metric Module</_option>
-				<_option value="CP">Circular Pitch</_option>
-				<_option value="DP">Diametral Pitch</_option>
+			<param name="size"      type="float"   min="0.1"  max="1000.0"	precision="5"	_gui-text="Tooth size (Module, CP, DP)">1.0</param>
+			<param name="system"    _gui-text="Tooth system" type="optiongroup">
+				<_option value="MM">Module (mm)</_option>
+				<_option value="CP">Circular Pitch (in)</_option>
+				<_option value="DP">Diametral Pitch (in)</_option>
 			</param>
 			<_param name="help"     type="description" xml:space="preserve">------------------------------</_param>
 			<param name="angle"     type="float"   min="5.0"  max="45.0"   	precision="1"	_gui-text="Pressure angle (5..45)">20.0</param>
@@ -36,9 +36,9 @@
 	-->
 			<param name="accuracy" type="enum" _gui-text="Tooth accuracy">
 				<item value="0">automatic</item>
-				<item value="20">best:   20 points</item>
-				<item value="12">medium: 12 points</item>
-				<item value="6">low:      6 points</item>
+				<item value="20">20 points: best</item>
+				<item value="12">12 points: medium</item>
+				<item value="6"> 6 points: low</item>
 			</param>
 			<_param name="help" type="description">Use higher accuracy with lower tooth count. Set Number of spokes to 0 to disable. Set Mount hole diameter to 0 to disable.</_param>
 		</page>
