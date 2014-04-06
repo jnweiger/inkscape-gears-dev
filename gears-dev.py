@@ -356,7 +356,8 @@ class Gears(inkex.Effect):
         """
         path_stroke = '#000000'  # might expose one day
         path_fill   = 'none'     # no fill - just a line
-        path_stroke_width  = 0.6 # might expose one day (guides are /5 thick)
+        path_stroke_width  = 0.6 # might expose one day 
+        path_stroke_light = 0.16 # guides are thinner
         
         # Debug using:  inkex.debug( "angle=%s pitch=%s" % (angle, pitch) )
         # take into account document dimensions and units in dialog. 
@@ -548,7 +549,7 @@ class Gears(inkex.Effect):
 
         # Add center
         if centercross:
-            style = { 'stroke': path_stroke, 'fill': path_fill, 'stroke-width': path_stroke_width / 5.0 }
+            style = { 'stroke': path_stroke, 'fill': path_fill, 'stroke-width': path_stroke_light }
             cs = str(pitch / 3) # centercross length
             d = 'M-'+cs+',0L'+cs+',0M0,-'+cs+'L0,'+cs  # 'M-10,0L10,0M0,-10L0,10'
             center_attribs = { inkex.addNS('label','inkscape'): 'Center cross',
@@ -557,7 +558,7 @@ class Gears(inkex.Effect):
 
         # Add pitch circle (for mating)
         if pitchcircle:
-            style = { 'stroke': path_stroke, 'fill': path_fill, 'stroke-width': path_stroke_width / 5.0 }
+            style = { 'stroke': path_stroke, 'fill': path_fill, 'stroke-width': path_stroke_light }
             draw_SVG_circle(g, pitch_radius, 0, 0, 'Pitch circle', style)
 
         # Add Rack (below)
@@ -584,7 +585,7 @@ class Gears(inkex.Effect):
             gear = inkex.etree.SubElement(
                 rack, inkex.addNS('path', 'svg'), gear_attribs)
             if path2 is not None:
-                style2 = { 'stroke': path_stroke, 'fill': 'none', 'stroke-width': path_stroke_width / 5.0 }
+                style2 = { 'stroke': path_stroke, 'fill': 'none', 'stroke-width': path_stroke_light }
                 gear_attribs2 = { 'style': simplestyle.formatStyle(style2), 'd': path2 }
                 gear = inkex.etree.SubElement(
                     rack, inkex.addNS('path', 'svg'), gear_attribs2)
