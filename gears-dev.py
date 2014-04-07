@@ -112,6 +112,13 @@ def undercut_max_k(teeth, pitch_angle=20.0):
     x = sin(radians(pitch_angle))
     return 0.5 * teeth * x * x
 
+def undercut_min_angle(teeth, k=1.0):
+    """ computes the minimum pitch angle, to that the given teeth count (and
+        profile shift) cause no undercut.
+    """
+    return degrees(asin(min(0.9135, sqrt(2.0*k/teeth))))	# max 59.9 deg
+
+
 def have_undercut(teeth, pitch_angle=20.0, k=1.0):
     """ returns true if the specified gear dimensions would
         cause an undercut.
@@ -460,6 +467,12 @@ class Gears(inkex.Effect):
         # Undercut?
         undercut = int(ceil(undercut_min_teeth( angle )))
         needs_undercut = teeth < undercut
+
+	if have_undercut(teeth, angle, 1.0):
+	    min_teeth = int(ceil(undercut_min_teeth(angle, 1.0)))
+	    min_angle = undercut_min_angle(teeth, 1.0) + .1
+	    max_k = undercut_max_k(teeth, angle)
+	    inkex.debug("Undercut Warning: This gear will not work well. Try tooth count of %d or more, or a pressure angle of %.1f ° or more, or try a profile shift of %d %% (not yet implemented). Or other decent combinations." % (min_teeth, min_angle, int(100.*max_k)-100.))
 
         # Dedendum: Radial distance from pitch circle to root diameter.
         dedendum = addendum + clearance
