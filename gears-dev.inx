@@ -85,7 +85,7 @@ where:
 Pressure angle [in degrees]. Usually 20. Historical: 14.5; High torque gears: 25.
 The higher the pressure angle, the stronger the teeth. With higher pressure angles, more effort is needed to turn the gears (due to friction).
 
-
+Caution: Undercut is currently not generated. E.g. a gear at pressure angle 20 deg and less than 17 teeth would either need profile shifting or will cause undercut. We only produce a warning.
 
 
 
