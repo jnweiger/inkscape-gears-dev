@@ -133,39 +133,42 @@ def have_undercut(teeth, pitch_angle=20.0, k=1.0):
 
 
 ## unused code. arbitrary constants 2.157 and 1.157 are not acceptable.
-def gear_calculations(num_teeth, metric, module, circular_pitch, pressure_angle, clearance):
-    """ intention is to put base calcs for gear in one place.
+def gear_calculations(num_teeth, circular_pitch, pressure_angle, clearance=0, spur=True):
+    """ Intention is to put base calcs for gear in one place.
         - does not calc for stub teeth just regular
         - pulled from web - might not be the right core list for this program
+        Currently ignoring profile shifting
     """
-    if metric:
-        # have unneccssary duplicates for inch/metric
-        #  probably only one needs to be calculated.
-        #  I.e. calc module and derive rest from there.
-        #  or calc dp ?
-        diametral_pitch = 25.4 / module # dp in inches but does it have to be - probably not
-        pitch_diameter = module * num_teeth
-        addendum = module
-        #dedendum = 1.157 * module # what is 1.157 ?? a clearance calc ?
-        dedendum = module + clearance # or maybe combine?  max(module + clearance, 1.157 * module)
-        working_depth = 2 * module
-        whole_depth = 2.157 * module
-        outside_diameter = module * (num_teeth + 2)
-    else:
-        diametral_pitch = pi / circular_pitch
-        pitch_diameter = num_teeth / diametral_pitch
-        addendum = 1 / diametral_pitch
-        dedendum = 1.157 / diametral_pitch # ?? number from ?
-        working_depth = 2 / diametral_pitch
-        whole_depth = 2.157 / diametral_pitch
-        outside_diameter = (num_teeth + 2) / diametral_pitch
-    #
+##    if metric:
+##        # have unneccssary duplicates for inch/metric
+##        #  probably only one needs to be calculated.
+##        #  I.e. calc module and derive rest from there.
+##        #  or calc dp ?
+##        diametral_pitch = 25.4 / module # dp in inches but does it have to be - probably not
+##        pitch_diameter = module * num_teeth
+##        addendum = module
+##        #dedendum = 1.157 * module # what is 1.157 ?? a clearance calc ?
+##        dedendum = module + clearance # or maybe combine?  max(module + clearance, 1.157 * module)
+##        working_depth = 2 * module
+##        whole_depth = 2.157 * module
+##        outside_diameter = module * (num_teeth + 2)
+##    else:
+    diametral_pitch = pi / circular_pitch
+    pitch_diameter = num_teeth / diametral_pitch
     pitch_radius = pitch_diameter / 2.0
-    base_radius = pitch_diameter * cos(pressure_angle) / 2.0
+    addendum = 1 / diametral_pitch
+    #dedendum = 1.157 / diametral_pitch # auto calc clearance
+    dedendum = addendum + clearance # our method
+    #
+    base_radius = pitch_diameter * cos(radians(pressure_angle)) / 2.0
     outer_radius = pitch_radius + addendum
     root_radius =  pitch_radius - dedendum
     # Tooth thickness: Tooth width along pitch circle.
     tooth_thickness  = ( pi * pitch_diameter ) / ( 2.0 * num_teeth )
+    # we don't use these
+    working_depth = 2 / diametral_pitch
+    whole_depth = 2.157 / diametral_pitch
+    #outside_diameter = (num_teeth + 2) / diametral_pitch
     #
     return (pitch_radius, base_radius,
             addendum, dedendum, outer_radius, root_radius,
@@ -369,19 +372,26 @@ class Gears(inkex.Effect):
 
            
     def calc_unit_factor(self):
-        """ given the document units and units declared in this extension's 
-            dialog - return the scale factor for all dimension conversions
+        """ return the scale factor for all dimension conversions.
+            - The document units are always irrelevant as
+              everything in inkscape is expected to be in 90dpi pixel units
         """
         # namedView = self.document.getroot().find(inkex.addNS('namedview', 'sodipodi'))
         # doc_units = inkex.uutounit(1.0, namedView.get(inkex.addNS('document-units', 'inkscape')))
         dialog_units = inkex.uutounit(1.0, self.options.units)
-        unit_factor = 1.0/dialog_units
+        unit_factor = 1.0 / dialog_units
+        return unit_factor
+
+    def calc_circular_pitch(self):
+        """ We use math based on circular pitch.
+            Expressed in inkscape units which is 90dpi 'pixel' units.
+        """
         dimension = self.options.dimension
         # print >> self.tty, "unit_factor=%s, doc_units=%s, dialog_units=%s (%s), system=%s" % (unit_factor, doc_units, dialog_units, self.options.units, self.options.system)
         if   self.options.system == 'CP': # circular pitch
             circular_pitch = dimension
         elif self.options.system == 'DP': # diametral pitch 
-                circular_pitch = pi / dimension
+            circular_pitch = pi / dimension
         elif self.options.system == 'MM': # module (metric)
             circular_pitch = dimension * pi / 25.4
         else:
@@ -391,8 +401,9 @@ class Gears(inkex.Effect):
         # unit.
         # The internal inkscape unit is always px, 
         # it is independent of the doc_units!
-        return unit_factor, circular_pitch / inkex.uutounit(1.0, 'in')
-        
+        return circular_pitch / inkex.uutounit(1.0, 'in')
+
+# Debug hint:  inkex.debug( "angle=%s pitch=%s" % (angle, pitch) )
 
     def effect(self):
         """ Calculate Gear factors from inputs.
@@ -405,16 +416,15 @@ class Gears(inkex.Effect):
         path_stroke_width  = 0.6            # might expose one day
         path_stroke_light  = path_stroke_width * 0.25   # guides are thinner
         
-        # Debug using:  inkex.debug( "angle=%s pitch=%s" % (angle, pitch) )
-        # take into account document dimensions and units in dialog. 
-        unit_factor,pitch = self.calc_unit_factor()
+        # calculate unit factor for units defined in dialog. 
+        unit_factor = self.calc_unit_factor()
         teeth = self.options.teeth
         # Angle of tangent to tooth at circular pitch wrt radial line.
         angle = self.options.angle 
         # Clearance: Radial distance between top of tooth on one gear to 
         # bottom of gap on another.
         clearance = self.options.clearance * unit_factor
-        
+        # Accuracy of teeth curves
         accuracy_involute = 20 # Number of points of the involute curve
         accuracy_circular = 9  # Number of points on circular parts
         if self.options.accuracy is not None:
@@ -428,13 +438,12 @@ class Gears(inkex.Effect):
             accuracy_circular = max(3, int(accuracy_involute/2) - 1) # never less than three
         # print >>self.tty, "accuracy_circular=%s accuracy_involute=%s" % (accuracy_circular, accuracy_involute)
 
-        
         mount_hole = self.options.mount_hole * unit_factor
         mount_radius = self.options.mount_diameter * 0.5 * unit_factor
 
         spoke_count = self.options.spoke_count
-        holes_rounding = self.options.holes_rounding * unit_factor
         spoke_width = self.options.spoke_width * unit_factor
+        holes_rounding = self.options.holes_rounding * unit_factor
         
         # should we combine to draw_guides ?
         centercross = self.options.centercross # draw center or not (boolean)
@@ -443,30 +452,41 @@ class Gears(inkex.Effect):
         # print >>sys.stderr, "Teeth: %s\n"     % teeth
         two_pi = 2.0 * pi
 
-        # Hopefully replace a lot of these with a call to a modified gear_calculations() above
-        
         # Pitch (circular pitch): Length of the arc from one tooth to the next)
         # Pitch diameter: Diameter of pitch circle.
-        pitch_diameter = teeth * pitch / pi
-        pitch_radius   = pitch_diameter / 2.0
-
-        # Base Circle
-        base_diameter = pitch_diameter * cos( radians( angle ) )
-        base_radius   = base_diameter / 2.0
-
-        # Diametrial pitch: Number of teeth per unit length.
-        pitch_diametrial = teeth / pitch_diameter
-
-        # Addendum: Radial distance from pitch circle to outside circle.
-        addendum = 1.0 / pitch_diametrial
-
-        # Outer Circle
-        outer_radius = pitch_radius + addendum
-        outer_diameter = outer_radius * 2.0
-
-        # Tooth thickness: Tooth width along pitch circle.
-        tooth  = ( pi * pitch_diameter ) / ( 2.0 * teeth )
-
+        pitch = self.calc_circular_pitch()
+        # Replace section below with this call to get the combined gear_calculations() above
+        (pitch_radius, base_radius, addendum, dedendum,
+         outer_radius, root_radius, tooth) = gear_calculations(teeth, pitch, angle, clearance)
+##        # can delete from here to marker below
+##        pitch_diameter = teeth * pitch / pi
+##        pitch_radius   = pitch_diameter / 2.0
+##
+##        # Base Circle
+##        base_diameter = pitch_diameter * cos( radians( angle ) )
+##        base_radius   = base_diameter / 2.0
+##
+##        # Diametrial pitch: Number of teeth per unit length.
+##        pitch_diametrial = teeth / pitch_diameter
+##
+##        # Addendum: Radial distance from pitch circle to outside circle.
+##        addendum = 1.0 / pitch_diametrial
+##
+##        # Outer Circle
+##        outer_radius = pitch_radius + addendum
+##        outer_diameter = outer_radius * 2.0
+##
+##        # Tooth thickness: Tooth width along pitch circle.
+##        tooth  = ( pi * pitch_diameter ) / ( 2.0 * teeth )
+##        
+##        # Dedendum: Radial distance from pitch circle to root diameter.
+##        dedendum = addendum + clearance
+##
+##        # Root diameter: Diameter of bottom of tooth spaces. 
+##        root_radius =  pitch_radius - dedendum
+##        root_diameter = root_radius * 2.0 # unused
+##        # can remove above here------------
+        
         # Undercut?
         undercut = int(ceil(undercut_min_teeth( angle )))
         needs_undercut = teeth < undercut
@@ -477,19 +497,6 @@ class Gears(inkex.Effect):
             max_k = undercut_max_k(teeth, angle)
             inkex.debug("Undercut Warning: This gear will not work well. Try tooth count of %d or more, or a pressure angle of %.1f ° or more, or try a profile shift of %d %% (not yet implemented). Or other decent combinations." % (min_teeth, min_angle, int(100.*max_k)-100.))
 
-        # Dedendum: Radial distance from pitch circle to root diameter.
-        dedendum = addendum + clearance
-
-        # Root diameter: Diameter of bottom of tooth spaces. 
-        root_radius =  pitch_radius - dedendum
-        root_diameter = root_radius * 2.0
-
-        # attempt at using base_calc function but scale errors
-##        (pitch_radius, base_radius,
-##        addendum, dedendum,
-##        outer_radius, root_radius,
-##        tooth) = gear_calculations(teeth, use_metric_module, self.options.module, pitch, angle, clearance)
-##        inkex.debug(tooth)
         # All base calcs done. Start building gear
         
         half_thick_angle = two_pi / (4.0 * teeth ) #?? = pi / (2.0 * teeth)
@@ -654,7 +661,7 @@ class Gears(inkex.Effect):
 
         # Add Annotations (above)
         if self.options.annotation:
-            outer_dia = outer_diameter
+            outer_dia = outer_radius * 2
             if self.options.spur_ring:
                 outer_dia += 2 * spoke_width
             notes =[#'Document (%s) scale conversion = %2.4f' % (self.document.getroot().find(inkex.addNS('namedview', 'sodipodi')).get(inkex.addNS('document-units', 'inkscape')),
@@ -662,9 +669,9 @@ class Gears(inkex.Effect):
                     'Teeth: %d   CP: %2.4f(%s) ' % (teeth, pitch / unit_factor, self.options.units),
                     'DP: %2.4f Module: %2.4f' %(pi / pitch * unit_factor, pitch / pi * 25.4),
                     'Pressure Angle: %2.4f degrees' % (angle),
-                    'Pitch diameter: %2.4f %s' % (pitch_diameter / unit_factor, self.options.units),
+                    'Pitch diameter: %2.4f %s' % (pitch_radius * 2 / unit_factor, self.options.units),
                     'Outer diameter: %2.4f %s' % (outer_dia / unit_factor, self.options.units),
-                    'Base diameter:  %2.4f %s' % (base_diameter / unit_factor, self.options.units)#,
+                    'Base diameter:  %2.4f %s' % (base_radius * 2 / unit_factor, self.options.units)#,
                     #'Addendum:      %2.4f %s'  % (addendum / unit_factor, self.options.units),
                     #'Dedendum:      %2.4f %s'  % (dedendum / unit_factor, self.options.units)
                     ]
