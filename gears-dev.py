@@ -34,7 +34,7 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 import inkex
 import simplestyle, sys, os
 #from math import *
-from math import pi, cos, sin, radians, ceil, asin, acos, sqrt
+from math import pi, cos, sin, tan, radians, ceil, asin, acos, sqrt
 
 __version__ = '0.7c'
 
@@ -664,8 +664,8 @@ class Gears(inkex.Effect):
             outer_dia = outer_radius * 2
             if self.options.spur_ring:
                 outer_dia += 2 * spoke_width
-            notes =[#'Document (%s) scale conversion = %2.4f' % (self.document.getroot().find(inkex.addNS('namedview', 'sodipodi')).get(inkex.addNS('document-units', 'inkscape')),
-                    #                                            unit_factor),
+            notes =['Document (%s) scale conversion = %2.4f' % (self.document.getroot().find(inkex.addNS('namedview', 'sodipodi')).get(inkex.addNS('document-units', 'inkscape')),
+                                                                unit_factor),
                     'Teeth: %d   CP: %2.4f(%s) ' % (teeth, pitch / unit_factor, self.options.units),
                     'DP: %2.4f Module: %2.4f' %(pi / pitch * unit_factor, pitch / pi * 25.4),
                     'Pressure Angle: %2.4f degrees' % (angle),
@@ -675,7 +675,9 @@ class Gears(inkex.Effect):
                     #'Addendum:      %2.4f %s'  % (addendum / unit_factor, self.options.units),
                     #'Dedendum:      %2.4f %s'  % (dedendum / unit_factor, self.options.units)
                     ]
-            text_height = 22
+            # text height relative to gear size.
+            # ranges from 10 to 22 over outer radius size 60 to 360
+            text_height = max(10, min(10+(outer_dia-60)/24, 22)) # or 22
             # position above
             y = - outer_radius - (len(notes)+1) * text_height * 1.2
             for note in notes:
