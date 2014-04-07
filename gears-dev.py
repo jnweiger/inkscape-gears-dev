@@ -20,18 +20,22 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
-2014-03-20: jw@suse.de 0.2  Option --accuracy=0 for automatic added.
-2014-03-21: sent upstream: https://bugs.launchpad.net/inkscape/+bug/1295641
-2014-03-21: jw@suse.de 0.3  Fixed center of rotation for gears with odd number of teeth.
-2014-04-04: jw@suse.de 0.7  Revamped calc_unit_factor(). 
-2014-04-05: jw@suse.de 0.7a Correctly positioned rack gear.
-			    The geometry above the meshing line is wrong.
+2014-03-20 jw@suse.de 0.2  Option --accuracy=0 for automatic added.
+2014-03-21                 sent upstream: https://bugs.launchpad.net/inkscape/+bug/1295641
+2014-03-21 jw@suse.de 0.3  Fixed center of rotation for gears with odd number of teeth.
+2014-04-04 juewei     0.7  Revamped calc_unit_factor(). 
+2014-04-05 juewei    0.7a  Correctly positioned rack gear.
+	       	           The geometry above the meshing line is wrong.
+2014-04-06 juewei    0.7b  Undercut detection added. Reference:
+			   http://nptel.ac.in/courses/IIT-MADRAS/Machine_Design_II/pdf/2_2.pdf
+			   Manually merged https://github.com/jnweiger/inkscape-gears-dev/pull/15
+		
 '''
 import inkex
 import simplestyle, sys, os
 from math import *
 
-__version__ = '0.7a'
+__version__ = '0.7b'
 
 def linspace(a,b,n):
     """ return list of linear interp of a to b in n steps
@@ -49,7 +53,7 @@ def point_on_circle(radius, angle):
     x = radius * cos(angle)
     y = radius * sin(angle)
     return (x, y)
-
+    
 def points_to_bbox(p):
     """ from a list of points (x,y pairs)
         - return the lower-left xy and upper-right xy
@@ -88,6 +92,35 @@ def draw_SVG_circle(parent, r, cx, cy, name, style):
                     'r': str(r),
                     inkex.addNS('label','inkscape'):name}
     circle = inkex.etree.SubElement(parent, inkex.addNS('circle','svg'), circ_attribs )
+
+
+def undercut_min_teeth(pitch_angle, k=1.0):
+    """ computes the minimum tooth count for a 
+        spur gear so that no undercut with the given pitch_angle (in deg) 
+        and an addendum = k * metric_module, where 0 < k < 1
+	Note:
+	The return value should be rounded upwards for perfect safety. E.g.
+	min_teeth = int(math.ceil(undercut_min_teeth(20.0)))	# 18, not 17
+    """
+    x = sin(radians(pitch_angle))
+    return 2*k/(x*x)
+
+def undercut_max_k(teeth, pitch_angle=20.0):
+    """ computes the maximum k value for a given teeth count and pitch_angle
+        so that no undercut occurs.
+    """
+    x = sin(radians(pitch_angle))
+    return 0.5 * teeth * x * x
+
+def have_undercut(teeth, pitch_angle=20.0, k=1.0):
+    """ returns true if the specified gear dimensions would
+        cause an undercut.
+    """
+    if (teeth < undercut_min_teeth(pitch_angle, k)):
+      return True
+    else:
+      return False
+
 
 ## unused code. arbitrary constants 2.157 and 1.157 are not acceptable.
 def gear_calculations(num_teeth, metric, module, circular_pitch, pressure_angle, clearance):
@@ -184,8 +217,6 @@ def generate_rack_path(tooth_count, pitch, addendum, pressure_angle,
         # Draw line representing the pitch circle of infinite diameter
         guide = None
         if draw_guides:
-            # FIXME: not really correct: clearance should only contribute to
-            # the part of the tooth below the meshing guide.
             p = []
             p.append( (x_lhs + 0.5 * tab_length, 0) )
             p.append( (x_rhs - 0.5 * tab_length, 0) )
@@ -208,14 +239,14 @@ class Gears(inkex.Effect):
                                      dest="teeth", default=24,
                                      help="Number of teeth")
         
-        self.OptionParser.add_option("-S", "--system",
+        self.OptionParser.add_option("-s", "--system",
                                      action="store", type="string", 
                                      dest="system", default='CP',
                                      help="Select system: 'CP' (Cyclic Pitch (default)), 'DP' (Diametral Pitch), 'MM' (Metric Module)")
         
-        self.OptionParser.add_option("-s", "--size",
+        self.OptionParser.add_option("-d", "--dimension",
                                      action="store", type="float",
-                                     dest="size", default=1.0,
+                                     dest="dimension", default=1.0,
                                      help="Tooth size, depending on system (which defaults to CP)")
 
 
@@ -243,6 +274,11 @@ class Gears(inkex.Effect):
                                      action="store", type="inkbool", 
                                      dest="annotation", default=False,
                                      help="Draw annotation text")
+
+        self.OptionParser.add_option("-R", "--ring",
+                                     action="store", type="inkbool",
+                                     dest="spur_ring", default=False,
+                                     help="Ring gear style (default: normal spur gear)")
 
         self.OptionParser.add_option("", "--mount-hole",
                                      action="store", type="float",
@@ -330,13 +366,14 @@ class Gears(inkex.Effect):
         # doc_units = inkex.uutounit(1.0, namedView.get(inkex.addNS('document-units', 'inkscape')))
         dialog_units = inkex.uutounit(1.0, self.options.units)
 	unit_factor = 1.0/dialog_units
+	dimension = self.options.dimension
 	# print >> self.tty, "unit_factor=%s, doc_units=%s, dialog_units=%s (%s), system=%s" % (unit_factor, doc_units, dialog_units, self.options.units, self.options.system)
 	if   self.options.system == 'CP': 
-	    circular_pitch = self.options.size
+	    circular_pitch = dimension
 	elif self.options.system == 'DP': 
-            circular_pitch = pi / self.options.size
+            circular_pitch = pi / dimension
 	elif self.options.system == 'MM': 
-	    circular_pitch = self.options.size * pi / 25.4
+	    circular_pitch = dimension * pi / 25.4
 	else:
 	    inkex.debug("unknown system '%s', try CP, DP, MM" % self.options.system)
 	# circular_pitch defines the size in inches.
@@ -355,7 +392,8 @@ class Gears(inkex.Effect):
         """
         path_stroke = '#000000'  # might expose one day
         path_fill   = 'none'     # no fill - just a line
-        path_stroke_width  = 0.6 # might expose one day (guides are /5 thick)
+        path_stroke_width  = 0.6 			# might expose one day
+        path_stroke_light  = path_stroke_width * 0.25 	# guides are thinner
         
         # Debug using:  inkex.debug( "angle=%s pitch=%s" % (angle, pitch) )
         # take into account document dimensions and units in dialog. 
@@ -420,7 +458,7 @@ class Gears(inkex.Effect):
         tooth  = ( pi * pitch_diameter ) / ( 2.0 * teeth )
 
         # Undercut?
-        undercut = (2.0 / ( sin( radians( angle ) ) ** 2))
+        undercut = int(ceil(undercut_min_teeth( angle )))
         needs_undercut = teeth < undercut
 
         # Dedendum: Radial distance from pitch circle to root diameter.
@@ -480,54 +518,64 @@ class Gears(inkex.Effect):
         # print >>self.tty, bbox_center
 
         # Spokes
-        holes = ''
-        r_outer = root_radius - spoke_width
-        for i in range(spoke_count):
-            points = []
-            start_a, end_a = i * two_pi / spoke_count, (i+1) * two_pi / spoke_count
-            # inner circle around mount
-            # - a better way to do this might be to increase local spoke width to be larger by epsilon than mount radius
-            # - this soln prevents blowout but does not make a useful result.
-            # Also mount radius should increase to avoid folding over when spoke_width gets big. But by what factor ?
-            # - can we calc when spoke_count*(spoke_width+delta) exceeds circumference of mount_radius circle.
-            # - then increase radius to fit - then recalc mount_radius.
-            asin_factor = spoke_width/mount_radius/2
-            # check if need to clamp radius
-            if asin_factor > 1 : asin_factor = 1
-            #a = asin(spoke_width/mount_radius/2)
-            a = asin(asin_factor)
-            points += [ point_on_circle(mount_radius, start_a + a), point_on_circle(mount_radius, end_a - a)]
-            # outer circle near gear
-            
-##            try:
-##                a = asin(spoke_width/r_outer/2)
-##            except:
-##                print >> sys.stderr, "error: Spoke width is too large:", spoke_width/unit_factor, "max=", r_outer*2/unit_factor
-            
-            # a better way to do this might be to decrease local spoke width to be smaller by epsilon than r_outer
-            # this soln prevents blowout but does not make a useful result. (see above)
-            asin_factor = spoke_width/r_outer/2
-            # check if need to clamp radius
-            if asin_factor > 1 : asin_factor = 1
-            a = asin(asin_factor)
-            points += [point_on_circle(r_outer, end_a - a), point_on_circle(r_outer, start_a + a) ]
-
+	if not self.options.spur_ring:	# only draw internals if spur gear
+            holes = ''
+            r_outer = root_radius - spoke_width
+            for i in range(spoke_count):
+                points = []
+                start_a, end_a = i * two_pi / spoke_count, (i+1) * two_pi / spoke_count
+                # inner circle around mount
+                # - a better way to do this might be to increase local spoke width to be larger by epsilon than mount radius
+                # - this soln prevents blowout but does not make a useful result.
+                # Also mount radius should increase to avoid folding over when spoke_width gets big. But by what factor ?
+                # - can we calc when spoke_count*(spoke_width+delta) exceeds circumference of mount_radius circle.
+                # - then increase radius to fit - then recalc mount_radius.
+                asin_factor = spoke_width/mount_radius/2
+                # check if need to clamp radius
+                if asin_factor > 1 : asin_factor = 1
+                #a = asin(spoke_width/mount_radius/2)
+                a = asin(asin_factor)
+                points += [ point_on_circle(mount_radius, start_a + a), point_on_circle(mount_radius, end_a - a)]
+                # outer circle near gear
+                
+##              try:
+##                  a = asin(spoke_width/r_outer/2)
+##              except:
+##                  print >> sys.stderr, "error: Spoke width is too large:", spoke_width/unit_factor, "max=", r_outer*2/unit_factor
+                
+                # a better way to do this might be to decrease local spoke width to be smaller by epsilon than r_outer
+                # this soln prevents blowout but does not make a useful result. (see above)
+                asin_factor = spoke_width/r_outer/2
+                # check if need to clamp radius
+                if asin_factor > 1 : asin_factor = 1
+                a = asin(asin_factor)
+                points += [point_on_circle(r_outer, end_a - a), point_on_circle(r_outer, start_a + a) ]
+    
+                path += (
+                        "M %f,%f" % points[0] +
+                        "A  %f,%f %s %s %s %f,%f" % tuple((mount_radius, mount_radius, 0, 0 if spoke_count!=1 else 1, 1 ) + points[1]) +
+                        "L %f,%f" % points[2] +
+                        "A  %f,%f %s %s %s %f,%f" % tuple((r_outer, r_outer, 0, 0 if spoke_count!=1 else 1, 0 ) + points[3]) +
+                        "Z"
+                        )
+    
+            # Draw mount hole
+            # A : rx,ry  x-axis-rotation, large-arch-flag, sweepflag  x,y
+            r = mount_hole / 2
             path += (
-                    "M %f,%f" % points[0] +
-                    "A  %f,%f %s %s %s %f,%f" % tuple((mount_radius, mount_radius, 0, 0 if spoke_count!=1 else 1, 1 ) + points[1]) +
-                    "L %f,%f" % points[2] +
-                    "A  %f,%f %s %s %s %f,%f" % tuple((r_outer, r_outer, 0, 0 if spoke_count!=1 else 1, 0 ) + points[3]) +
-                    "Z"
+                    "M %f,%f" % (0,r) +
+                    "A  %f,%f %s %s %s %f,%f" % (r,r, 0,0,0, 0,-r) +
+                    "A  %f,%f %s %s %s %f,%f" % (r,r, 0,0,0, 0,r) 
                     )
-
-        # Draw mount hole
-        # A : rx,ry  x-axis-rotation, large-arch-flag, sweepflag  x,y
-        r = mount_hole / 2
-        path += (
-                "M %f,%f" % (0,r) +
-                "A  %f,%f %s %s %s %f,%f" % (r,r, 0,0,0, 0,-r) +
-                "A  %f,%f %s %s %s %f,%f" % (r,r, 0,0,0, 0,r) 
-                )
+        else:
+	    # its a ring gear
+	    # which only has an outer ring where width = spoke width
+	    r = outer_radius + spoke_width
+            path += (
+                    "M %f,%f" % (0,r) +
+                    "A  %f,%f %s %s %s %f,%f" % (r,r, 0,0,0, 0,-r) +
+                    "A  %f,%f %s %s %s %f,%f" % (r,r, 0,0,0, 0,r) 
+                    )
         
         # Embed gear in group to make animation easier:
         #  Translate group, Rotate path.
@@ -547,7 +595,7 @@ class Gears(inkex.Effect):
 
         # Add center
         if centercross:
-            style = { 'stroke': path_stroke, 'fill': path_fill, 'stroke-width': path_stroke_width / 5.0 }
+            style = { 'stroke': path_stroke, 'fill': path_fill, 'stroke-width': path_stroke_light }
             cs = str(pitch / 3) # centercross length
             d = 'M-'+cs+',0L'+cs+',0M0,-'+cs+'L0,'+cs  # 'M-10,0L10,0M0,-10L0,10'
             center_attribs = { inkex.addNS('label','inkscape'): 'Center cross',
@@ -556,7 +604,7 @@ class Gears(inkex.Effect):
 
         # Add pitch circle (for mating)
         if pitchcircle:
-            style = { 'stroke': path_stroke, 'fill': path_fill, 'stroke-width': path_stroke_width / 5.0 }
+            style = { 'stroke': path_stroke, 'fill': path_fill, 'stroke-width': path_stroke_light }
             draw_SVG_circle(g, pitch_radius, 0, 0, 'Pitch circle', style)
 
         # Add Rack (below)
@@ -578,12 +626,12 @@ class Gears(inkex.Effect):
             rack = inkex.etree.SubElement(g, 'g', g_attribs)
 
             # Create SVG Path for gear
-            style = {'stroke': path_stroke, 'fill': 'none', 'stroke-width': path_stroke_width}
+            style = {'stroke': path_stroke, 'fill': 'none', 'stroke-width': path_stroke_width }
             gear_attribs = { 'style': simplestyle.formatStyle(style), 'd': path }
             gear = inkex.etree.SubElement(
                 rack, inkex.addNS('path', 'svg'), gear_attribs)
             if path2 is not None:
-                style2 = { 'stroke': path_stroke, 'fill': 'none', 'stroke-width': path_stroke_width / 5.0 }
+                style2 = { 'stroke': path_stroke, 'fill': 'none', 'stroke-width': path_stroke_light }
                 gear_attribs2 = { 'style': simplestyle.formatStyle(style2), 'd': path2 }
                 gear = inkex.etree.SubElement(
                     rack, inkex.addNS('path', 'svg'), gear_attribs2)
@@ -591,15 +639,18 @@ class Gears(inkex.Effect):
 
         # Add Annotations (above)
         if self.options.annotation:
-            notes =['Document (%s) scale conversion = %2.4f' % (self.document.getroot().find(inkex.addNS('namedview', 'sodipodi')).get(inkex.addNS('document-units', 'inkscape')),
-                                                                unit_factor),
-                    'Teeth: %d   Pitch: %2.4f' % (teeth, pitch),
-                    'Pressure Angle: %2.4f' % (angle),
-                    'Pitch diameter: %2.4f' % (pitch_diameter),
-                    'Outer diameter: %2.4f' % (outer_diameter),
-                    'Base diameter: %2.4f'  % (base_diameter),
-                    'Addendum: %2.4f'  % (addendum),
-                    'Dedendum: %2.4f'  % (dedendum)
+	    outer_dia = outer_diameter
+	    if self.options.spur_ring:
+		outer_dia += 2 * spoke_width
+            notes =[#'Document (%s) scale conversion = %2.4f' % (self.document.getroot().find(inkex.addNS('namedview', 'sodipodi')).get(inkex.addNS('document-units', 'inkscape')),
+                    #                                            unit_factor),
+                    'Teeth: %d   CP: %2.4f(%s) ' % (teeth, pitch / unit_factor, self.options.units),
+                    'Pressure Angle: %2.4f degrees' % (angle),
+                    'Pitch diameter: %2.4f %s' % (pitch_diameter / unit_factor, self.options.units),
+                    'Outer diameter: %2.4f %s' % (outer_dia / unit_factor, self.options.units),
+                    'Base diameter:  %2.4f %s' % (base_diameter / unit_factor, self.options.units)#,
+                    #'Addendum:      %2.4f %s'  % (addendum / unit_factor, self.options.units),
+                    #'Dedendum:      %2.4f %s'  % (dedendum / unit_factor, self.options.units)
                     ]
             text_height = 22
             # position above
