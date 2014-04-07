@@ -555,8 +555,7 @@ class Gears(inkex.Effect):
                 # - then increase radius to fit - then recalc mount_radius.
                 asin_factor = spoke_width/mount_radius/2
                 # check if need to clamp radius
-                if asin_factor > 1 : asin_factor = 1
-                #a = asin(spoke_width/mount_radius/2)
+                asin_factor = max(-1.0, min(1.0, asin_factor))
                 a = asin(asin_factor)
                 points += [ point_on_circle(mount_radius, start_a + a), point_on_circle(mount_radius, end_a - a)]
                 # outer circle near gear
@@ -569,7 +568,8 @@ class Gears(inkex.Effect):
                 # this soln prevents blowout but does not make a useful result. (see above)
                 asin_factor = spoke_width/r_outer/2
                 # check if need to clamp radius
-                if asin_factor > 1 : asin_factor = 1
+                asin_factor = max(-1.0, min(1.0, asin_factor))
+                #if asin_factor > 1 : asin_factor = 1
                 a = asin(asin_factor)
                 points += [point_on_circle(r_outer, end_a - a), point_on_circle(r_outer, start_a + a) ]
 
