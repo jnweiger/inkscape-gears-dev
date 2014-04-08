@@ -36,6 +36,8 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 import inkex
 import simplestyle, sys, os
 from math import pi, cos, sin, tan, radians, degrees, ceil, asin, acos, sqrt
+two_pi = 2 * pi
+
 
 __version__ = '0.7c'
 
@@ -220,6 +222,69 @@ def generate_rack_path(tooth_count, pitch, addendum, pressure_angle,
             guide = points_to_svgd(p)
         # return points ready for use in an SVG 'path'
         return (points_to_svgd(points), guide)
+
+def generate_spur_path():
+    """ given a set of core gear params
+        - generate the svg path for the gear
+    """
+    pass
+
+def generate_spokes_path(root_radius, spoke_width, spoke_count, mount_radius, mount_hole,
+                         unit_factor, unit_label):
+    """ given a set of constraints
+        - generate the svg path for the gear spokes
+    """
+    # Spokes
+    collision = False # assume we draw spokes
+    messages = []     # messages to send back about changes.
+    path = ''
+    r_outer = root_radius - spoke_width
+    # checks for collision with spokes
+    # first check to see if cross-over on spoke width
+    if spoke_width * spoke_count >= (two_pi * mount_radius) - 0.5:
+        adj_factor = 1.2 # wrong value. its probably one of the points distances calculated below
+        mount_radius += adj_factor
+        messages.append("Too many spokes. Increased Mount support by %2.3f%s" % (adj_factor/unit_factor, unit_label))
+    # check for mount hole collision with inner spokes
+    if mount_radius <= mount_hole/2:
+        adj_factor = (r_outer - mount_hole/2) / 5
+        if adj_factor < 0.1:
+            # not enough reasonable room
+            collision = True
+        else:
+            mount_radius = mount_hole/2 + adj_factor # small fix
+            messages.append("Mount support too small. Auto increased to %2.2f%s." % (mount_radius/unit_factor*2, unit_label))
+    # check for collision with outer rim
+    if r_outer <= mount_radius:
+        # not enough room to draw spokes so cancel
+        collision = True
+    if collision: # don't draw spokes if no room.
+        messages.append("Not enough room for Spokes. Decrease Spoke width.")
+    else: # draw spokes
+        for i in range(spoke_count):
+            points = []
+            start_a, end_a = i * two_pi / spoke_count, (i+1) * two_pi / spoke_count
+            # inner circle around mount
+            asin_factor = spoke_width/mount_radius/2
+            # check if need to clamp radius
+            asin_factor = max(-1.0, min(1.0, asin_factor)) # no longer needed - resized above
+            a = asin(asin_factor)
+            points += [ point_on_circle(mount_radius, start_a + a), point_on_circle(mount_radius, end_a - a)]
+            # is inner circle too small
+            asin_factor = spoke_width/r_outer/2
+            # check if need to clamp radius
+            asin_factor = max(-1.0, min(1.0, asin_factor)) # no longer needed - resized above
+            a = asin(asin_factor)
+            points += [point_on_circle(r_outer, end_a - a), point_on_circle(r_outer, start_a + a) ]
+
+            path += (
+                    "M %f,%f" % points[0] +
+                    "A  %f,%f %s %s %s %f,%f" % tuple((mount_radius, mount_radius, 0, 0 if spoke_count!=1 else 1, 1 ) + points[1]) +
+                    "L %f,%f" % points[2] +
+                    "A  %f,%f %s %s %s %f,%f" % tuple((r_outer, r_outer, 0, 0 if spoke_count!=1 else 1, 0 ) + points[3]) +
+                    "Z"
+                    )
+    return (path, messages)
 
 
 class Gears(inkex.Effect):
@@ -434,9 +499,6 @@ class Gears(inkex.Effect):
         # should we combine to draw_guides ?
         centercross = self.options.centercross # draw center or not (boolean)
         pitchcircle = self.options.pitchcircle # draw pitch circle or not (boolean)
-        
-        # print >>sys.stderr, "Teeth: %s\n"     % teeth
-        two_pi = 2.0 * pi
 
         # Pitch (circular pitch): Length of the arc from one tooth to the next)
         # Pitch diameter: Diameter of pitch circle.
@@ -444,41 +506,6 @@ class Gears(inkex.Effect):
         # Replace section below with this call to get the combined gear_calculations() above
         (pitch_radius, base_radius, addendum, dedendum,
          outer_radius, root_radius, tooth) = gear_calculations(teeth, pitch, angle, clearance)
-##        # can delete from here to marker below
-##        pitch_diameter = teeth * pitch / pi
-##        pitch_radius   = pitch_diameter / 2.0
-##
-##        # Base Circle
-##        base_diameter = pitch_diameter * cos( radians( angle ) )
-##        base_radius   = base_diameter / 2.0
-##
-##        # Diametrial pitch: Number of teeth per unit length.
-##        pitch_diametrial = teeth / pitch_diameter
-##
-##        # Addendum: Radial distance from pitch circle to outside circle.
-##        addendum = 1.0 / pitch_diametrial
-##
-##        # Outer Circle
-##        outer_radius = pitch_radius + addendum
-##        outer_diameter = outer_radius * 2.0
-##
-##        # Tooth thickness: Tooth width along pitch circle.
-##        tooth  = ( pi * pitch_diameter ) / ( 2.0 * teeth )
-##        
-##        # Dedendum: Radial distance from pitch circle to root diameter.
-##        dedendum = addendum + clearance
-##
-##        # Root diameter: Diameter of bottom of tooth spaces. 
-##        root_radius =  pitch_radius - dedendum
-##        root_diameter = root_radius * 2.0 # unused
-##        # can remove above here------------
-
-        # Dedendum: Radial distance from pitch circle to root diameter.
-        # dedendum = addendum + clearance
-
-        # Root diameter: Diameter of bottom of tooth spaces. 
-        # root_radius =  pitch_radius - dedendum
-        # root_diameter = root_radius * 2.0
 
         # Detect Undercut of teeth
         undercut = int(ceil(undercut_min_teeth( angle )))
@@ -489,6 +516,9 @@ class Gears(inkex.Effect):
             min_angle = undercut_min_angle(teeth, 1.0) + .1
             max_k = undercut_max_k(teeth, angle)
             msg = "Undercut Warning: This gear will not work well.\nTry tooth count of %d or more,\nor a pressure angle of %.1f ° or more,\nor try a profile shift of %d %% (not yet implemented).\nOr other decent combinations." % (min_teeth, min_angle, int(100.*max_k)-100.)
+            msg = "Undercut Warning: This gear will not work well.\nTry tooth count of %d or more,\nor a pressure angle of %.1f or more,\nor try a profile shift of %d %% (not yet implemented).\nOr other decent combinations." % (min_teeth, min_angle, int(100.*max_k)-100.)
+            # alas annotation cannot handle the degree symbol. Also it ignore newlines.
+            # need solution for this...
             warnings.append(msg)
             inkex.debug(msg)
         # All base calcs done. Start building gear
@@ -536,54 +566,10 @@ class Gears(inkex.Effect):
 
         # Spokes
         if not self.options.spur_ring:  # only draw internals if spur gear
-            collision = False
-            holes = ''
-            r_outer = root_radius - spoke_width
-            # checks for collision with spokes
-            # first check to see if cross-over on spoke width
-            if spoke_width * spoke_count >= (two_pi * mount_radius) - 0.5:
-                adj_factor = 0.3 # wrong value. its probably one of the points distances calculated below
-                mount_radius += adj_factor
-                warnings.append("Too many spokes. Increased Mount support by %2.3f" % adj_factor)
-            # check for mount hole collision with inner spokes
-            if mount_radius <= mount_hole/2:
-                adj_factor = (r_outer - mount_hole/2) / 5
-                if adj_factor < 0.1:
-                    # not enough reasonable room
-                    collision = True
-                else:
-                    mount_radius = mount_hole/2 + adj_factor # small fix
-                    warnings.append("Mount support too small. Auto increased to %2.2f." % mount_radius)
-            # check for collision with outer rim
-            if r_outer <= mount_radius:
-                # not enough room to draw spokes so cancel
-                collision = True
-            if collision: # don't draw spokes if no room.
-                warnings.append("Not enough room for Spokes. Decrease Spoke width.")
-            else: # draw spokes
-                for i in range(spoke_count):
-                    points = []
-                    start_a, end_a = i * two_pi / spoke_count, (i+1) * two_pi / spoke_count
-                    # inner circle around mount
-                    asin_factor = spoke_width/mount_radius/2
-                    # check if need to clamp radius
-                    #asin_factor = max(-1.0, min(1.0, asin_factor)) # no longer needed - resized above
-                    a = asin(asin_factor)
-                    points += [ point_on_circle(mount_radius, start_a + a), point_on_circle(mount_radius, end_a - a)]
-                    # is inner circle too small
-                    asin_factor = spoke_width/r_outer/2
-                    # check if need to clamp radius
-                    #asin_factor = max(-1.0, min(1.0, asin_factor)) # no longer needed - resized above
-                    a = asin(asin_factor)
-                    points += [point_on_circle(r_outer, end_a - a), point_on_circle(r_outer, start_a + a) ]
-
-                    path += (
-                            "M %f,%f" % points[0] +
-                            "A  %f,%f %s %s %s %f,%f" % tuple((mount_radius, mount_radius, 0, 0 if spoke_count!=1 else 1, 1 ) + points[1]) +
-                            "L %f,%f" % points[2] +
-                            "A  %f,%f %s %s %s %f,%f" % tuple((r_outer, r_outer, 0, 0 if spoke_count!=1 else 1, 0 ) + points[3]) +
-                            "Z"
-                            )
+            spokes_path, msg = generate_spokes_path(root_radius, spoke_width, spoke_count, mount_radius, mount_hole,
+                                                    unit_factor, self.options.units)
+            warnings.extend(msg)
+            path += spokes_path
 
             # Draw mount hole
             # A : rx,ry  x-axis-rotation, large-arch-flag, sweepflag  x,y
