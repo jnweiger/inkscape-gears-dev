@@ -35,8 +35,7 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 import inkex
 import simplestyle, sys, os
-#from math import *
-from math import pi, cos, sin, tan, radians, ceil, asin, acos, sqrt
+from math import pi, cos, sin, tan, radians, degrees, ceil, asin, acos, sqrt
 
 __version__ = '0.7c'
 
@@ -48,6 +47,7 @@ def linspace(a,b,n):
     return [a+x*(b-a)/(n-1) for x in range(0,n)]
 
 def involute_intersect_angle(Rb, R):
+    " "
     Rb, R = float(Rb), float(R)
     return (sqrt(R**2 - Rb**2) / (Rb)) - (acos(Rb / R))
 
@@ -97,6 +97,7 @@ def draw_SVG_circle(parent, r, cx, cy, name, style):
     circle = inkex.etree.SubElement(parent, inkex.addNS('circle','svg'), circ_attribs )
 
 
+### Undercut support functions
 def undercut_min_teeth(pitch_angle, k=1.0):
     """ computes the minimum tooth count for a 
         spur gear so that no undercut with the given pitch_angle (in deg) 
@@ -129,27 +130,13 @@ def have_undercut(teeth, pitch_angle=20.0, k=1.0):
     return (teeth < undercut_min_teeth(pitch_angle, k))
 
 
-## unused code. arbitrary constants 2.157 and 1.157 are not acceptable.
+## gather all basic gear calculations in one place
 def gear_calculations(num_teeth, circular_pitch, pressure_angle, clearance=0, spur=True):
     """ Intention is to put base calcs for gear in one place.
         - does not calc for stub teeth just regular
         - pulled from web - might not be the right core list for this program
         Currently ignoring profile shifting
     """
-##    if metric:
-##        # have unneccssary duplicates for inch/metric
-##        #  probably only one needs to be calculated.
-##        #  I.e. calc module and derive rest from there.
-##        #  or calc dp ?
-##        diametral_pitch = 25.4 / module # dp in inches but does it have to be - probably not
-##        pitch_diameter = module * num_teeth
-##        addendum = module
-##        #dedendum = 1.157 * module # what is 1.157 ?? a clearance calc ?
-##        dedendum = module + clearance # or maybe combine?  max(module + clearance, 1.157 * module)
-##        working_depth = 2 * module
-##        whole_depth = 2.157 * module
-##        outside_diameter = module * (num_teeth + 2)
-##    else:
     diametral_pitch = pi / circular_pitch
     pitch_diameter = num_teeth / diametral_pitch
     pitch_radius = pitch_diameter / 2.0
@@ -238,7 +225,8 @@ def generate_rack_path(tooth_count, pitch, addendum, pressure_angle,
 class Gears(inkex.Effect):
     def __init__(self):
         inkex.Effect.__init__(self)
-        # try using inkex.debug(string) instead...
+        # an alternate way to get debug info:
+        # could use inkex.debug(string) instead...
         try:
             self.tty = open("/dev/tty", 'w')
         except:
@@ -400,7 +388,7 @@ class Gears(inkex.Effect):
         # it is independent of the doc_units!
         return circular_pitch / inkex.uutounit(1.0, 'in')
 
-# Debug hint:  inkex.debug( "angle=%s pitch=%s" % (angle, pitch) )
+
 
     def effect(self):
         """ Calculate Gear factors from inputs.
@@ -412,7 +400,8 @@ class Gears(inkex.Effect):
         path_fill   = 'none'     # no fill - just a line
         path_stroke_width  = 0.6            # might expose one day
         path_stroke_light  = path_stroke_width * 0.25   # guides are thinner
-        
+        #
+        warnings = [] # list of extra messages to be shown in annotations
         # calculate unit factor for units defined in dialog. 
         unit_factor = self.calc_unit_factor()
         teeth = self.options.teeth
@@ -483,10 +472,6 @@ class Gears(inkex.Effect):
 ##        root_radius =  pitch_radius - dedendum
 ##        root_diameter = root_radius * 2.0 # unused
 ##        # can remove above here------------
-        
-        # Undercut?
-        undercut = int(ceil(undercut_min_teeth( angle )))
-        needs_undercut = teeth < undercut
 
         # Dedendum: Radial distance from pitch circle to root diameter.
         # dedendum = addendum + clearance
@@ -494,12 +479,18 @@ class Gears(inkex.Effect):
         # Root diameter: Diameter of bottom of tooth spaces. 
         # root_radius =  pitch_radius - dedendum
         # root_diameter = root_radius * 2.0
+
+        # Detect Undercut of teeth
+        undercut = int(ceil(undercut_min_teeth( angle )))
+        needs_undercut = teeth < undercut #? no longer needed ?
+        
         if have_undercut(teeth, angle, 1.0):
             min_teeth = int(ceil(undercut_min_teeth(angle, 1.0)))
             min_angle = undercut_min_angle(teeth, 1.0) + .1
             max_k = undercut_max_k(teeth, angle)
-            inkex.debug("Undercut Warning: This gear will not work well. Try tooth count of %d or more, or a pressure angle of %.1f ° or more, or try a profile shift of %d %% (not yet implemented). Or other decent combinations." % (min_teeth, min_angle, int(100.*max_k)-100.))
-
+            msg = "Undercut Warning: This gear will not work well.\nTry tooth count of %d or more,\nor a pressure angle of %.1f ° or more,\nor try a profile shift of %d %% (not yet implemented).\nOr other decent combinations." % (min_teeth, min_angle, int(100.*max_k)-100.)
+            warnings.append(msg)
+            inkex.debug(msg)
         # All base calcs done. Start building gear
         
         half_thick_angle = two_pi / (4.0 * teeth ) #?? = pi / (2.0 * teeth)
@@ -545,44 +536,54 @@ class Gears(inkex.Effect):
 
         # Spokes
         if not self.options.spur_ring:  # only draw internals if spur gear
+            collision = False
             holes = ''
             r_outer = root_radius - spoke_width
-            for i in range(spoke_count):
-                points = []
-                start_a, end_a = i * two_pi / spoke_count, (i+1) * two_pi / spoke_count
-                # inner circle around mount
-                # - a better way to do this might be to increase local spoke width to be larger by epsilon than mount radius
-                # - this soln prevents blowout but does not make a useful result.
-                # Also mount radius should increase to avoid folding over when spoke_width gets big. But by what factor ?
-                # - can we calc when spoke_count*(spoke_width+delta) exceeds circumference of mount_radius circle.
-                # - then increase radius to fit - then recalc mount_radius.
-                asin_factor = spoke_width/mount_radius/2
-                # check if need to clamp radius
-                asin_factor = max(-1.0, min(1.0, asin_factor))
-                a = asin(asin_factor)
-                points += [ point_on_circle(mount_radius, start_a + a), point_on_circle(mount_radius, end_a - a)]
-                # outer circle near gear
-##              try:
-##                  a = asin(spoke_width/r_outer/2)
-##              except:
-##                  print >> sys.stderr, "error: Spoke width is too large:", spoke_width/unit_factor, "max=", r_outer*2/unit_factor
-                
-                # a better way to do this might be to decrease local spoke width to be smaller by epsilon than r_outer
-                # this soln prevents blowout but does not make a useful result. (see above)
-                asin_factor = spoke_width/r_outer/2
-                # check if need to clamp radius
-                asin_factor = max(-1.0, min(1.0, asin_factor))
-                #if asin_factor > 1 : asin_factor = 1
-                a = asin(asin_factor)
-                points += [point_on_circle(r_outer, end_a - a), point_on_circle(r_outer, start_a + a) ]
+            # checks for collision with spokes
+            # first check to see if cross-over on spoke width
+            if spoke_width * spoke_count >= (two_pi * mount_radius) - 0.5:
+                adj_factor = 0.3 # wrong value. its probably one of the points distances calculated below
+                mount_radius += adj_factor
+                warnings.append("Too many spokes. Increased Mount support by %2.3f" % adj_factor)
+            # check for mount hole collision with inner spokes
+            if mount_radius <= mount_hole/2:
+                adj_factor = (r_outer - mount_hole/2) / 5
+                if adj_factor < 0.1:
+                    # not enough reasonable room
+                    collision = True
+                else:
+                    mount_radius = mount_hole/2 + adj_factor # small fix
+                    warnings.append("Mount support too small. Auto increased to %2.2f." % mount_radius)
+            # check for collision with outer rim
+            if r_outer <= mount_radius:
+                # not enough room to draw spokes so cancel
+                collision = True
+            if collision: # don't draw spokes if no room.
+                warnings.append("Not enough room for Spokes. Decrease Spoke width.")
+            else: # draw spokes
+                for i in range(spoke_count):
+                    points = []
+                    start_a, end_a = i * two_pi / spoke_count, (i+1) * two_pi / spoke_count
+                    # inner circle around mount
+                    asin_factor = spoke_width/mount_radius/2
+                    # check if need to clamp radius
+                    #asin_factor = max(-1.0, min(1.0, asin_factor)) # no longer needed - resized above
+                    a = asin(asin_factor)
+                    points += [ point_on_circle(mount_radius, start_a + a), point_on_circle(mount_radius, end_a - a)]
+                    # is inner circle too small
+                    asin_factor = spoke_width/r_outer/2
+                    # check if need to clamp radius
+                    #asin_factor = max(-1.0, min(1.0, asin_factor)) # no longer needed - resized above
+                    a = asin(asin_factor)
+                    points += [point_on_circle(r_outer, end_a - a), point_on_circle(r_outer, start_a + a) ]
 
-                path += (
-                        "M %f,%f" % points[0] +
-                        "A  %f,%f %s %s %s %f,%f" % tuple((mount_radius, mount_radius, 0, 0 if spoke_count!=1 else 1, 1 ) + points[1]) +
-                        "L %f,%f" % points[2] +
-                        "A  %f,%f %s %s %s %f,%f" % tuple((r_outer, r_outer, 0, 0 if spoke_count!=1 else 1, 0 ) + points[3]) +
-                        "Z"
-                        )
+                    path += (
+                            "M %f,%f" % points[0] +
+                            "A  %f,%f %s %s %s %f,%f" % tuple((mount_radius, mount_radius, 0, 0 if spoke_count!=1 else 1, 1 ) + points[1]) +
+                            "L %f,%f" % points[2] +
+                            "A  %f,%f %s %s %s %f,%f" % tuple((r_outer, r_outer, 0, 0 if spoke_count!=1 else 1, 0 ) + points[3]) +
+                            "Z"
+                            )
 
             # Draw mount hole
             # A : rx,ry  x-axis-rotation, large-arch-flag, sweepflag  x,y
@@ -667,20 +668,21 @@ class Gears(inkex.Effect):
             outer_dia = outer_radius * 2
             if self.options.spur_ring:
                 outer_dia += 2 * spoke_width
-            notes =['Document (%s) scale conversion = %2.4f' % (self.document.getroot().find(inkex.addNS('namedview', 'sodipodi')).get(inkex.addNS('document-units', 'inkscape')),
-                                                                unit_factor),
-                    'Teeth: %d   CP: %2.4f(%s) ' % (teeth, pitch / unit_factor, self.options.units),
-                    'DP: %2.4f Module: %2.4f' %(pi / pitch * unit_factor, pitch / pi * 25.4),
-                    'Pressure Angle: %2.4f degrees' % (angle),
-                    'Pitch diameter: %2.4f %s' % (pitch_radius * 2 / unit_factor, self.options.units),
-                    'Outer diameter: %2.4f %s' % (outer_dia / unit_factor, self.options.units),
-                    'Base diameter:  %2.4f %s' % (base_radius * 2 / unit_factor, self.options.units)#,
-                    #'Addendum:      %2.4f %s'  % (addendum / unit_factor, self.options.units),
-                    #'Dedendum:      %2.4f %s'  % (dedendum / unit_factor, self.options.units)
-                    ]
+            notes = []
+            notes.extend(warnings)
+            #notes.append('Document (%s) scale conversion = %2.4f' % (self.document.getroot().find(inkex.addNS('namedview', 'sodipodi')).get(inkex.addNS('document-units', 'inkscape')), unit_factor))
+            notes.extend(['Teeth: %d   CP: %2.4f(%s) ' % (teeth, pitch / unit_factor, self.options.units),
+                          'DP: %2.3f Module: %2.4f' %(pi / pitch * unit_factor, pitch / pi * 25.4),
+                          'Pressure Angle: %2.2f degrees' % (angle),
+                          'Pitch diameter: %2.3f %s' % (pitch_radius * 2 / unit_factor, self.options.units),
+                          'Outer diameter: %2.3f %s' % (outer_dia / unit_factor, self.options.units),
+                          'Base diameter:  %2.3f %s' % (base_radius * 2 / unit_factor, self.options.units)#,
+                          #'Addendum:      %2.4f %s'  % (addendum / unit_factor, self.options.units),
+                          #'Dedendum:      %2.4f %s'  % (dedendum / unit_factor, self.options.units)
+                          ])
             # text height relative to gear size.
             # ranges from 10 to 22 over outer radius size 60 to 360
-            text_height = max(10, min(10+(outer_dia-60)/24, 22)) # or 22
+            text_height = max(10, min(10+(outer_dia-60)/24, 22))
             # position above
             y = - outer_radius - (len(notes)+1) * text_height * 1.2
             for note in notes:
