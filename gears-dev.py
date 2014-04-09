@@ -141,21 +141,21 @@ def gear_calculations(num_teeth, circular_pitch, pressure_angle, clearance=0, ri
     """ Intention is to put base calcs for gear in one place.
         - does not calc for stub teeth just regular
         - pulled from web - might not be the right core list for this program
-        - positive profile shifting helps against undercut. 
+        - negative profile shifting helps against undercut. 
     """
     diametral_pitch = pi / circular_pitch
     pitch_diameter = num_teeth / diametral_pitch
     pitch_radius = pitch_diameter / 2.0
     addendum = 1 / diametral_pitch
     #dedendum = 1.157 / diametral_pitch # auto calc clearance
+    dedendum = addendum
+    dedendum *= 1+profile_shift
+    addendum *= 1-profile_shift
     if ring_gear:
-        dedendum = addendum
         addendum = addendum + clearance # our method
     else:
-        dedendum = addendum + clearance # our method
+        dedendum = dedendum + clearance # our method
     #
-    dedendum *= 1-profile_shift
-    addendum *= 1+profile_shift
     #
     base_radius = pitch_diameter * cos(radians(pressure_angle)) / 2.0
     outer_radius = pitch_radius + addendum
@@ -332,7 +332,7 @@ class Gears(inkex.Effect):
         self.OptionParser.add_option("-p", "--profile-shift",
                                      action="store", type="float",
                                      dest="profile_shift", default=20.0,
-                                     help="Profile shift [in percent of the module]. Positive values help against undercut")
+                                     help="Profile shift [in percent of the module]. Negative values help against undercut")
 
         self.OptionParser.add_option("-u", "--units",
                                      action="store", type="string",
@@ -536,7 +536,7 @@ class Gears(inkex.Effect):
             min_teeth = int(ceil(undercut_min_teeth(angle, 1.0)))
             min_angle = undercut_min_angle(teeth, 1.0) + .1
             max_k = undercut_max_k(teeth, angle)
-            msg = "Undercut Warning: This gear (%d teeth) will not work well.\nTry tooth count of %d or more,\nor a pressure angle of %.1f [deg] or more,\nor try a profile shift of %d %%.\nOr other decent combinations." % (teeth, min_teeth, min_angle, 100.-int(100.*max_k))
+            msg = "Undercut Warning: This gear (%d teeth) will not work well.\nTry tooth count of %d or more,\nor a pressure angle of %.1f [deg] or more,\nor try a profile shift of %d %%.\nOr other decent combinations." % (teeth, min_teeth, min_angle, int(100.*max_k)-100.)
             # alas annotation cannot handle the degree symbol. Also it ignore newlines.
             # need solution for this...
             warnings.append(msg)
