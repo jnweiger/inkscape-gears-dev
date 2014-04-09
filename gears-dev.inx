@@ -28,7 +28,8 @@
 				<option value="pt">pt</option>
 				<option value="px">px</option></param>
 			<param name="clearance" type="float"   min="0"    max="100"     precision="3"	_gui-text="Clearance (bottom)">0</param>
-			<param name="spur_ring"			type="boolean" _gui-text="Ring gear">false</param>
+			<param name="profile-shift" type="float" min="-66" max="66"     precision="1"	_gui-text="Profile shift [% of module]">0</param>
+			<param name="spur-ring"			type="boolean" _gui-text="Ring gear">false</param>
 			<param name="mount-hole"		type="float" min="0"    max="100"	precision="3"	_gui-text="Mount hole diameter">4.0</param>
 			<param name="spoke-count"		type="int"   min="0"    max="100"	_gui-text="Number of spokes">3</param>
 			<param name="spoke-width"		type="float" min=".01"  max="1000"	precision="3"	_gui-text="Spoke, rim (or ring) width">3.0</param>
