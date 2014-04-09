@@ -94,14 +94,8 @@ Caution: Undercut is currently not generated. E.g. a gear at pressure angle 20 d
 
 
 
-
-
-
-
-
-
-
 			</_param>
+			<param name="undercut-alert" type="boolean" _gui-text="Confirm gear with undercut">true</param>
 		</page>
 	</param>
 	<effect>

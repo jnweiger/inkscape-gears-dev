@@ -30,6 +30,8 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
                http://nptel.ac.in/courses/IIT-MADRAS/Machine_Design_II/pdf/2_2.pdf
                Manually merged https://github.com/jnweiger/inkscape-gears-dev/pull/15
 2014-04-07 juewei    0.7c  Manually merged https://github.com/jnweiger/inkscape-gears-dev/pull/17
+2014-04-09 juewei    0.8   Fixed https://github.com/jnweiger/inkscape-gears-dev/issues/19
+			   Ring gears are ready for production now. Thanks neon22 for driving this.
 
 '''
 
@@ -39,7 +41,7 @@ from math import pi, cos, sin, tan, radians, degrees, ceil, asin, acos, sqrt
 two_pi = 2 * pi
 
 
-__version__ = '0.7c'
+__version__ = '0.8'
 
 def linspace(a,b,n):
     """ return list of linear interp of a to b in n steps
@@ -133,7 +135,7 @@ def have_undercut(teeth, pitch_angle=20.0, k=1.0):
 
 
 ## gather all basic gear calculations in one place
-def gear_calculations(num_teeth, circular_pitch, pressure_angle, clearance=0, spur=True):
+def gear_calculations(num_teeth, circular_pitch, pressure_angle, clearance=0, ring_gear=False):
     """ Intention is to put base calcs for gear in one place.
         - does not calc for stub teeth just regular
         - pulled from web - might not be the right core list for this program
@@ -144,7 +146,11 @@ def gear_calculations(num_teeth, circular_pitch, pressure_angle, clearance=0, sp
     pitch_radius = pitch_diameter / 2.0
     addendum = 1 / diametral_pitch
     #dedendum = 1.157 / diametral_pitch # auto calc clearance
-    dedendum = addendum + clearance # our method
+    if ring_gear:
+        dedendum = addendum
+        addendum = addendum + clearance # our method
+    else:
+        dedendum = addendum + clearance # our method
     #
     base_radius = pitch_diameter * cos(radians(pressure_angle)) / 2.0
     outer_radius = pitch_radius + addendum
@@ -403,6 +409,11 @@ class Gears(inkex.Effect):
                                      dest="base_tab", default=14,
                                      help="Length of tabs on ends of rack")
 
+        self.OptionParser.add_option("", "--undercut-alert",
+                                     action="store", type="inkbool", 
+                                     dest="undercut_alert", default=False,
+                                     help="Let the user confirm a warning dialog if undercut occurs. This dialog also shows helpful hints against undercut")
+
     
     def add_text(self, node, text, position, text_height=12):
         """ Create and insert a single line of text into the svg under node.
@@ -505,7 +516,7 @@ class Gears(inkex.Effect):
         pitch = self.calc_circular_pitch()
         # Replace section below with this call to get the combined gear_calculations() above
         (pitch_radius, base_radius, addendum, dedendum,
-         outer_radius, root_radius, tooth) = gear_calculations(teeth, pitch, angle, clearance)
+         outer_radius, root_radius, tooth) = gear_calculations(teeth, pitch, angle, clearance, self.options.spur_ring)
 
         # Detect Undercut of teeth
         undercut = int(ceil(undercut_min_teeth( angle )))
@@ -520,7 +531,11 @@ class Gears(inkex.Effect):
             # alas annotation cannot handle the degree symbol. Also it ignore newlines.
             # need solution for this...
             warnings.append(msg)
-            inkex.debug(msg)
+	    if self.options.undercut_alert:
+                inkex.debug(msg)
+	    else:
+                print >>self.tty, msg
+
         # All base calcs done. Start building gear
         
         half_thick_angle = two_pi / (4.0 * teeth ) #?? = pi / (2.0 * teeth)
