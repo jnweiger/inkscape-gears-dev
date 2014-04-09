@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <inkscape-extension xmlns="http://www.inkscape.org/namespace/inkscape/extension">
 	<_name>Gear-dev</_name>
-	<id>org.ekips.filter.gears-dev</id>
+	<id>com.gihub.jnweiger.inkscape-gears-dev</id>
+	<!-- org.ekips.filter.gears-dev (where did this come from?) -->
 	<dependency type="executable" location="extensions">gears-dev.py</dependency>
 	<dependency type="executable" location="extensions">inkex.py</dependency>
 	<param name='active-tab' type="notebook">
