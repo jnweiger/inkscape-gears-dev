@@ -9,8 +9,8 @@
 		<page name="Gear" _gui-text="Gears">
 			<param name="teeth"     type="int"     min="3"    max="1200"    _gui-text="Number of teeth (3..1200)">24</param>
 			<param name="dimension" type="float"   min="0.1"  max="1000.0"	precision="5"	_gui-text="Tooth size (Module, CP, DP)">1.0</param>
-			<param name="system"    _gui-text="System" type="optiongroup">
-				<_option value="MM">Metric Module (mm)</_option>
+			<param name="system"    _gui-text="Tooth system" type="optiongroup">
+				<_option value="MM">Module (mm)</_option>
 				<_option value="CP">Circular Pitch (in)</_option>
 				<_option value="DP">Diametral Pitch (in)</_option>
 			</param>
@@ -28,7 +28,7 @@
 				<option value="pt">pt</option>
 				<option value="px">px</option></param>
 			<param name="clearance" type="float"   min="0"    max="100"     precision="3"	_gui-text="Clearance (bottom)">0</param>
-			<param name="ring"			type="boolean" _gui-text="Ring gear">false</param>
+			<param name="spur_ring"			type="boolean" _gui-text="Ring gear">false</param>
 			<param name="mount-hole"		type="float" min="0"    max="100"	precision="3"	_gui-text="Mount hole diameter">4.0</param>
 			<param name="spoke-count"		type="int"   min="0"    max="100"	_gui-text="Number of spokes">3</param>
 			<param name="spoke-width"		type="float" min=".01"  max="1000"	precision="3"	_gui-text="Spoke, rim (or ring) width">3.0</param>
@@ -40,7 +40,7 @@
 				<item value="0">automatic</item>
 				<item value="20">20 points: best</item>
 				<item value="12">12 points: medium</item>
-				<item value="6">6 points: low</item>
+				<item value="6"> 6 points: low</item>
 			</param>
 			<_param name="help" type="description">Use higher accuracy with lower tooth count. Set Number of spokes to 0 to disable. Set Mount hole diameter to 0 to disable.</_param>
 		</page>
