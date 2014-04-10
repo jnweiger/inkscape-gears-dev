@@ -36,8 +36,8 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 			   https://github.com/jnweiger/inkscape-gears-dev/issues/9
 '''
 
-import inkex
-import simplestyle, sys, os
+import inkex, simplestyle
+from os import devnull # for debugging
 from math import pi, cos, sin, tan, radians, degrees, ceil, asin, acos, sqrt
 two_pi = 2 * pi
 
@@ -170,8 +170,7 @@ def gear_calculations(num_teeth, circular_pitch, pressure_angle, clearance=0, ri
             )
 
  
-
-def generate_rack_path(tooth_count, pitch, addendum, pressure_angle,
+def generate_rack_points(tooth_count, pitch, addendum, pressure_angle,
                        base_height, tab_length, clearance=0, draw_guides=False):
         """ Return path (suitable for svg) of the Rack gear.
             - rack gear uses straight sides
@@ -222,20 +221,58 @@ def generate_rack_path(tooth_count, pitch, addendum, pressure_angle,
         # points.append((x_lhs, base_bot))
 
         # Draw line representing the pitch circle of infinite diameter
-        guide = None
+        guide_path = None
         if draw_guides:
             p = []
             p.append( (x_lhs + 0.5 * tab_length, 0) )
             p.append( (x_rhs - 0.5 * tab_length, 0) )
-            guide = points_to_svgd(p)
+            guide_path = points_to_svgd(p)
         # return points ready for use in an SVG 'path'
-        return (points_to_svgd(points), guide)
+        return (points, guide_path)
+    
 
-def generate_spur_path():
+def generate_spur_points(teeth, base_radius, pitch_radius, outer_radius, root_radius, accuracy_involute, accuracy_circular):
     """ given a set of core gear params
         - generate the svg path for the gear
     """
-    pass
+    half_thick_angle = two_pi / (4.0 * teeth ) #?? = pi / (2.0 * teeth)
+    pitch_to_base_angle  = involute_intersect_angle( base_radius, pitch_radius )
+    pitch_to_outer_angle = involute_intersect_angle( base_radius, outer_radius ) - pitch_to_base_angle
+
+    start_involute_radius = max(base_radius, root_radius)
+    radii = linspace(start_involute_radius, outer_radius, accuracy_involute)
+    angles = [involute_intersect_angle(base_radius, r) for r in radii]
+
+    centers = [(x * two_pi / float( teeth) ) for x in range( teeth ) ]
+    points = []
+
+    for c in centers:
+        # Angles
+        pitch1 = c - half_thick_angle
+        base1  = pitch1 - pitch_to_base_angle
+        offsetangles1 = [ base1 + x for x in angles]
+        points1 = [ point_on_circle( radii[i], offsetangles1[i]) for i in range(0,len(radii)) ]
+
+        pitch2 = c + half_thick_angle
+        base2  = pitch2 + pitch_to_base_angle
+        offsetangles2 = [ base2 - x for x in angles] 
+        points2 = [ point_on_circle( radii[i], offsetangles2[i]) for i in range(0,len(radii)) ]
+
+        points_on_outer_radius = [ point_on_circle(outer_radius, x) for x in linspace(offsetangles1[-1], offsetangles2[-1], accuracy_circular) ]
+
+        if root_radius > base_radius:
+            pitch_to_root_angle = pitch_to_base_angle - involute_intersect_angle(base_radius, root_radius )
+            root1 = pitch1 - pitch_to_root_angle
+            root2 = pitch2 + pitch_to_root_angle
+            points_on_root = [point_on_circle (root_radius, x) for x in linspace(root2, root1+(two_pi/float(teeth)), accuracy_circular) ]
+            p_tmp = points1 + points_on_outer_radius[1:-1] + points2[::-1] + points_on_root[1:-1] # [::-1] reverses list; [1:-1] removes first and last element
+        else:
+            points_on_root = [point_on_circle (root_radius, x) for x in linspace(base2, base1+(two_pi/float(teeth)), accuracy_circular) ]
+            p_tmp = points1 + points_on_outer_radius[1:-1] + points2[::-1] + points_on_root # [::-1] reverses list
+
+        points.extend( p_tmp )
+    return (points)
+
 
 def generate_spokes_path(root_radius, spoke_width, spoke_count, mount_radius, mount_hole,
                          unit_factor, unit_label):
@@ -252,11 +289,6 @@ def generate_spokes_path(root_radius, spoke_width, spoke_count, mount_radius, mo
     path = ''
     r_outer = root_radius - spoke_width
     # checks for collision with spokes
-    # first check to see if cross-over on spoke width
-    if spoke_width * spoke_count >= (two_pi * mount_radius) - 0.5:
-        adj_factor = 1.2 # wrong value. its probably one of the points distances calculated below
-        mount_radius += adj_factor
-        messages.append("Too many spokes. Increased Mount support by %2.3f%s" % (adj_factor/unit_factor, unit_label))
     # check for mount hole collision with inner spokes
     if mount_radius <= mount_hole/2:
         adj_factor = (r_outer - mount_hole/2) / 5
@@ -266,6 +298,13 @@ def generate_spokes_path(root_radius, spoke_width, spoke_count, mount_radius, mo
         else:
             mount_radius = mount_hole/2 + adj_factor # small fix
             messages.append("Mount support too small. Auto increased to %2.2f%s." % (mount_radius/unit_factor*2, unit_label))
+            
+    # then check to see if cross-over on spoke width
+    if spoke_width * spoke_count +0.5 >= two_pi * mount_radius:
+        adj_factor = 1.2 # wrong value. its probably one of the points distances calculated below
+        mount_radius += adj_factor
+        messages.append("Too many spokes. Increased Mount support by %2.3f%s" % (adj_factor/unit_factor, unit_label))
+    
     # check for collision with outer rim
     if r_outer <= mount_radius:
         # not enough room to draw spokes so cancel
@@ -307,7 +346,7 @@ class Gears(inkex.Effect):
         try:
             self.tty = open("/dev/tty", 'w')
         except:
-            self.tty = open(os.devnull, 'w')  # '/dev/null' for POSIX, 'nul' for Windows.
+            self.tty = open(devnull, 'w')  # '/dev/null' for POSIX, 'nul' for Windows.
             # print >>self.tty, "gears-dev " + __version__
         self.OptionParser.add_option("-t", "--teeth",
                                      action="store", type="int",
@@ -544,49 +583,49 @@ class Gears(inkex.Effect):
                 print >>self.tty, msg
 
         # All base calcs done. Start building gear
+        points = generate_spur_points(teeth, base_radius, pitch_radius, outer_radius, root_radius, accuracy_involute, accuracy_circular)
         
-        half_thick_angle = two_pi / (4.0 * teeth ) #?? = pi / (2.0 * teeth)
-        pitch_to_base_angle  = involute_intersect_angle( base_radius, pitch_radius )
-        pitch_to_outer_angle = involute_intersect_angle( base_radius, outer_radius ) - pitch_to_base_angle
-
-        start_involute_radius = max(base_radius, root_radius)
-        radii = linspace(start_involute_radius, outer_radius, accuracy_involute)
-        angles = [involute_intersect_angle(base_radius, r) for r in radii]
-
-        centers = [(x * two_pi / float( teeth) ) for x in range( teeth ) ]
-        points = []
-
-        for c in centers:
-            # Angles
-            pitch1 = c - half_thick_angle
-            base1  = pitch1 - pitch_to_base_angle
-            offsetangles1 = [ base1 + x for x in angles]
-            points1 = [ point_on_circle( radii[i], offsetangles1[i]) for i in range(0,len(radii)) ]
-
-            pitch2 = c + half_thick_angle
-            base2  = pitch2 + pitch_to_base_angle
-            offsetangles2 = [ base2 - x for x in angles] 
-            points2 = [ point_on_circle( radii[i], offsetangles2[i]) for i in range(0,len(radii)) ]
-
-            points_on_outer_radius = [ point_on_circle(outer_radius, x) for x in linspace(offsetangles1[-1], offsetangles2[-1], accuracy_circular) ]
-
-            if root_radius > base_radius:
-                pitch_to_root_angle = pitch_to_base_angle - involute_intersect_angle(base_radius, root_radius )
-                root1 = pitch1 - pitch_to_root_angle
-                root2 = pitch2 + pitch_to_root_angle
-                points_on_root = [point_on_circle (root_radius, x) for x in linspace(root2, root1+(two_pi/float(teeth)), accuracy_circular) ]
-                p_tmp = points1 + points_on_outer_radius[1:-1] + points2[::-1] + points_on_root[1:-1] # [::-1] reverses list; [1:-1] removes first and last element
-            else:
-                points_on_root = [point_on_circle (root_radius, x) for x in linspace(base2, base1+(two_pi/float(teeth)), accuracy_circular) ]
-                p_tmp = points1 + points_on_outer_radius[1:-1] + points2[::-1] + points_on_root # [::-1] reverses list
-
-            points.extend( p_tmp )
+##        half_thick_angle = two_pi / (4.0 * teeth ) #?? = pi / (2.0 * teeth)
+##        pitch_to_base_angle  = involute_intersect_angle( base_radius, pitch_radius )
+##        pitch_to_outer_angle = involute_intersect_angle( base_radius, outer_radius ) - pitch_to_base_angle
+##
+##        start_involute_radius = max(base_radius, root_radius)
+##        radii = linspace(start_involute_radius, outer_radius, accuracy_involute)
+##        angles = [involute_intersect_angle(base_radius, r) for r in radii]
+##
+##        centers = [(x * two_pi / float( teeth) ) for x in range( teeth ) ]
+##        points = []
+##
+##        for c in centers:
+##            # Angles
+##            pitch1 = c - half_thick_angle
+##            base1  = pitch1 - pitch_to_base_angle
+##            offsetangles1 = [ base1 + x for x in angles]
+##            points1 = [ point_on_circle( radii[i], offsetangles1[i]) for i in range(0,len(radii)) ]
+##
+##            pitch2 = c + half_thick_angle
+##            base2  = pitch2 + pitch_to_base_angle
+##            offsetangles2 = [ base2 - x for x in angles] 
+##            points2 = [ point_on_circle( radii[i], offsetangles2[i]) for i in range(0,len(radii)) ]
+##
+##            points_on_outer_radius = [ point_on_circle(outer_radius, x) for x in linspace(offsetangles1[-1], offsetangles2[-1], accuracy_circular) ]
+##
+##            if root_radius > base_radius:
+##                pitch_to_root_angle = pitch_to_base_angle - involute_intersect_angle(base_radius, root_radius )
+##                root1 = pitch1 - pitch_to_root_angle
+##                root2 = pitch2 + pitch_to_root_angle
+##                points_on_root = [point_on_circle (root_radius, x) for x in linspace(root2, root1+(two_pi/float(teeth)), accuracy_circular) ]
+##                p_tmp = points1 + points_on_outer_radius[1:-1] + points2[::-1] + points_on_root[1:-1] # [::-1] reverses list; [1:-1] removes first and last element
+##            else:
+##                points_on_root = [point_on_circle (root_radius, x) for x in linspace(base2, base1+(two_pi/float(teeth)), accuracy_circular) ]
+##                p_tmp = points1 + points_on_outer_radius[1:-1] + points2[::-1] + points_on_root # [::-1] reverses list
+##
+##            points.extend( p_tmp )
 
         path = points_to_svgd( points )
         bbox_center = points_to_bbox_center( points )
-        # print >>self.tty, bbox_center
 
-        # Spokes
+        # Spokes (add to current path)
         if not self.options.spur_ring:  # only draw internals if spur gear
             spokes_path, msg = generate_spokes_path(root_radius, spoke_width, spoke_count, mount_radius, mount_hole,
                                                     unit_factor, self.options.units)
@@ -622,7 +661,7 @@ class Gears(inkex.Effect):
         # add the group to the current layer
         g = inkex.etree.SubElement(self.current_layer, 'g', g_attribs )
 
-        # Create SVG Path for gear under top level group
+        # Create gear path under top level group
         style = { 'stroke': path_stroke, 'fill': path_fill, 'stroke-width': path_stroke_width }
         gear_attribs = { 'style': simplestyle.formatStyle(style), 'd': path }
         gear = inkex.etree.SubElement(g, inkex.addNS('path','svg'), gear_attribs )
@@ -646,8 +685,9 @@ class Gears(inkex.Effect):
             base_height = self.options.base_height * unit_factor
             tab_width = self.options.base_tab * unit_factor
             tooth_count = self.options.teeth_length
-            (path,path2) = generate_rack_path(tooth_count, pitch, addendum, angle,
-                                      base_height, tab_width, clearance, pitchcircle)
+            (points, guide_path) = generate_rack_points(tooth_count, pitch, addendum, angle,
+                                                        base_height, tab_width, clearance, pitchcircle)
+            path = points_to_svgd(points)
             # position below Gear, so that it meshes nicely
             # xoff = 0          ## if teeth % 4 == 2.
             # xoff = -0.5*pitch     ## if teeth % 4 == 0.
@@ -664,9 +704,9 @@ class Gears(inkex.Effect):
             gear_attribs = { 'style': simplestyle.formatStyle(style), 'd': path }
             gear = inkex.etree.SubElement(
                 rack, inkex.addNS('path', 'svg'), gear_attribs)
-            if path2 is not None:
+            if guide_path is not None:
                 style2 = { 'stroke': path_stroke, 'fill': 'none', 'stroke-width': path_stroke_light }
-                gear_attribs2 = { 'style': simplestyle.formatStyle(style2), 'd': path2 }
+                gear_attribs2 = { 'style': simplestyle.formatStyle(style2), 'd': guide_path }
                 gear = inkex.etree.SubElement(
                     rack, inkex.addNS('path', 'svg'), gear_attribs2)
 
@@ -680,7 +720,7 @@ class Gears(inkex.Effect):
             notes.extend(warnings)
             #notes.append('Document (%s) scale conversion = %2.4f' % (self.document.getroot().find(inkex.addNS('namedview', 'sodipodi')).get(inkex.addNS('document-units', 'inkscape')), unit_factor))
             notes.extend(['Teeth: %d   CP: %2.4f(%s) ' % (teeth, pitch / unit_factor, self.options.units),
-                          'DP: %2.3f Module: %2.4f' %(pi / pitch * unit_factor, pitch / pi * 25.4),
+                          'DP: %2.3f Module: %2.4f' % (pi / pitch * unit_factor, pitch / pi * 25.4),
                           'Pressure Angle: %2.2f degrees' % (angle),
                           'Pitch diameter: %2.3f %s' % (pitch_radius * 2 / unit_factor, self.options.units),
                           'Outer diameter: %2.3f %s' % (outer_dia / unit_factor, self.options.units),
