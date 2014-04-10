@@ -28,7 +28,8 @@
 				<option value="pt">pt</option>
 				<option value="px">px</option></param>
 			<param name="clearance" type="float"   min="0"    max="100"     precision="3"	_gui-text="Clearance (bottom)">0</param>
-			<param name="spur_ring"			type="boolean" _gui-text="Ring gear">false</param>
+			<param name="profile-shift" type="float" min="-50" max="50"     precision="1"	_gui-text="Profile shift [% of module]">0</param>
+			<param name="spur-ring"			type="boolean" _gui-text="Ring gear">false</param>
 			<param name="mount-hole"		type="float" min="0"    max="100"	precision="3"	_gui-text="Mount hole diameter">4.0</param>
 			<param name="spoke-count"		type="int"   min="0"    max="100"	_gui-text="Number of spokes">3</param>
 			<param name="spoke-width"		type="float" min=".01"  max="1000"	precision="3"	_gui-text="Spoke, rim (or ring) width">3.0</param>
@@ -86,7 +87,8 @@ where:
 Pressure angle [in degrees]. Usually 20. Historical: 14.5; High torque gears: 25.
 The higher the pressure angle, the stronger the teeth. With higher pressure angles, more effort is needed to turn the gears (due to friction).
 
-Caution: Undercut is currently not generated. E.g. a gear at pressure angle 20 deg and less than 17 teeth would either need profile shifting or will cause undercut. We only produce a warning.
+
+Caution: Undercut is currently not generated. E.g. a gear at pressure angle 20 deg and less than 17 teeth would either need a (negative!) profile shifting or will cause undercut. We only produce a warning.
 
 
 
