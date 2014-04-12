@@ -394,10 +394,10 @@ class Gears(inkex.Effect):
                                      dest="annotation", default=False,
                                      help="Draw annotation text")
 
-        self.OptionParser.add_option("-R", "--spur-ring",
+        self.OptionParser.add_option("-i", "--internal-ring",
                                      action="store", type="inkbool",
-                                     dest="spur_ring", default=False,
-                                     help="Ring gear style (default: normal spur gear)")
+                                     dest="internal_ring", default=False,
+                                     help="Ring (or Internal) gear style (default: normal spur gear)")
 
         self.OptionParser.add_option("", "--mount-hole",
                                      action="store", type="float",
@@ -564,7 +564,7 @@ class Gears(inkex.Effect):
         pitch = self.calc_circular_pitch()
         # Replace section below with this call to get the combined gear_calculations() above
         (pitch_radius, base_radius, addendum, dedendum,
-         outer_radius, root_radius, tooth) = gear_calculations(teeth, pitch, angle, clearance, self.options.spur_ring, self.options.profile_shift*0.01)
+         outer_radius, root_radius, tooth) = gear_calculations(teeth, pitch, angle, clearance, self.options.internal_ring, self.options.profile_shift*0.01)
 
         # Detect Undercut of teeth
 ##        undercut = int(ceil(undercut_min_teeth( angle )))
@@ -626,7 +626,7 @@ class Gears(inkex.Effect):
         bbox_center = points_to_bbox_center( points )
 
         # Spokes (add to current path)
-        if not self.options.spur_ring:  # only draw internals if spur gear
+        if not self.options.internal_ring:  # only draw internals if spur gear
             spokes_path, msg = generate_spokes_path(root_radius, spoke_width, spoke_count, mount_radius, mount_hole,
                                                     unit_factor, self.options.units)
             warnings.extend(msg)
@@ -714,7 +714,7 @@ class Gears(inkex.Effect):
         # Add Annotations (above)
         if self.options.annotation:
             outer_dia = outer_radius * 2
-            if self.options.spur_ring:
+            if self.options.internal_ring:
                 outer_dia += 2 * spoke_width
             notes = []
             notes.extend(warnings)
