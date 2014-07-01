@@ -1,0 +1,56 @@
+-------------------------------------------------------------------
+Thu Apr  3 20:56:45 UTC 2014 - jw@suse.com
+
+- version 0.7, commit 481aed80e3a0470a2dcbd75f503450077f70c360
+   Revamped the scaling of the gear. This hopefully fixes #5 #14 
+   My silly metric_hack is no longer needed.
+
+
+-------------------------------------------------------------------
+Mon Mar 31 00:03:47 UTC 2014 - jw@suse.com
+
+- commit c72cf73ce7 
+  Issue: a 6 tooth gear had its gaps very shallow below the pitch circle.
+  Fixed computation of accuracy_circular, was always -1 with my automatic setting.
+  Now the low tooth count gears look great again.
+
+-------------------------------------------------------------------
+Sun Mar 30 21:16:56 UTC 2014 - jw@suse.com
+
+- updated to 0.5 merged all from neon22
+
+-------------------------------------------------------------------
+Thu May  9 18:28:26 UTC 2013 - jw@suse.com
+
+- update URLs, 
+- renamed inkscape-extensions-gears-dev to inkscape-gears-dev
+
+-------------------------------------------------------------------
+Fri Apr 12 22:53:49 UTC 2013 - jw@suse.com
+
+- extended_ranges.patch added
+  max. 360 teeth was too low for 366 outer wheel of an astrolabium.
+- selectable_accuracy.patch
+  high accuracy of involute is not needed with large tooth counts.
+  It just gets extremly slow. Allow lowered settings.
+- metric_module.patch
+  Add an option to select metric units system and module, instead
+  of circular pitch.
+
+-------------------------------------------------------------------
+Tue Apr  2 12:08:38 UTC 2013 - jw@suse.com
+
+- an improvement over the original inkscape extension gears
+  It adds holes to the gear (central hole for the shaft and some radial holes
+  to make gear lighter).
+
+  * More accurate tooth profile. In earlier versions the involute curve was
+    approximated by only three points; now by 15 (can be modified in the source code)
+  * Center cross (easy for aligning); off by default, can be turned on
+  * Pitch circle (easy for meshing; circles should touch for meshing gears);
+    off by defalut can be turned on
+  * Info: in the SVG there is now an extra field telling a little about the
+    gear (easy if you want to make a meshing gear but you forgot the settings used)
+
+
+
