@@ -34,6 +34,9 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 			   Ring gears are ready for production now. Thanks neon22 for driving this.
 			   Profile shift implemented (Advanced Tab), fixing 
 			   https://github.com/jnweiger/inkscape-gears-dev/issues/9
+2015-05-29 juewei 0.9 	ported to inkscape 0.91
+			AttributeError: 'module' object inkex has no attribute 'uutounit
+			Fixed https://github.com/jnweiger/inkscape-gears-dev
 '''
 
 import inkex, simplestyle
@@ -42,7 +45,13 @@ from math import pi, cos, sin, tan, radians, degrees, ceil, asin, acos, sqrt
 two_pi = 2 * pi
 
 
-__version__ = '0.8a'
+__version__ = '0.9'
+
+def uutounit(self,nn,uu):
+  try:
+    return self.uutounit(nn,uu)		# inkscape 0.91
+  except:
+    return inkex.uutounit(nn,uu)	# inkscape 0.48
 
 def linspace(a,b,n):
     """ return list of linear interp of a to b in n steps
@@ -488,8 +497,8 @@ class Gears(inkex.Effect):
               everything in inkscape is expected to be in 90dpi pixel units
         """
         # namedView = self.document.getroot().find(inkex.addNS('namedview', 'sodipodi'))
-        # doc_units = inkex.uutounit(1.0, namedView.get(inkex.addNS('document-units', 'inkscape')))
-        dialog_units = inkex.uutounit(1.0, self.options.units)
+        # doc_units = uutounit(self, 1.0, namedView.get(inkex.addNS('document-units', 'inkscape')))
+        dialog_units = uutounit(self, 1.0, self.options.units)
         unit_factor = 1.0 / dialog_units
         return unit_factor
 
@@ -512,7 +521,7 @@ class Gears(inkex.Effect):
         # unit.
         # The internal inkscape unit is always px, 
         # it is independent of the doc_units!
-        return circular_pitch / inkex.uutounit(1.0, 'in')
+        return circular_pitch / uutounit(self, 1.0, 'in')
 
 
 
