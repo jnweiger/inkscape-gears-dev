@@ -19,7 +19,7 @@ Windows:
 *  C:\Program Files\Inkscape\share\extensions\.
 
 Mac OS X: 
-*  /Applications/Inkscape.app/Contents/Resources/extensions/. 
+*  /Applications/Inkscape.app/Contents/Resources/share/inkscape/extensions/
 
 
 References
