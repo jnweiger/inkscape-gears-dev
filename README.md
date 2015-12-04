@@ -9,14 +9,16 @@ This is based on http://cnc-club.ru/forum/viewtopic.php?f=33&t=434&p=2594#p2500,
 * metric_module.patch https://build.opensuse.org/package/view_file?expand=1&file=metric_module.patch&package=inkscape-extensions-gears-dev&project=home:jnweiger
 * selectable_accuracy.patch https://build.opensuse.org/package/view_file?expand=1&file=selectable_accuracy.patch&package=inkscape-extensions-gears-dev&project=home:jnweiger
 
-Copy the two files gears-dev.inx and gears-dev.py to your computer:
+Downloading:
+* Easiest way is to download the Zip file and then extract on your machine to the proper directory.
+* There will be two files: gears-dev.inx and gears-dev.py
 
 Linux:
 *  ~/.config/inkscape/extensions/ or
 *  /usr/share/inkscape/extensions/
 
 Windows: 
-*  C:\Program Files\Inkscape\share\extensions\.
+*  navigate to the directory %APPDATA%/inkscape/extensions
 
 Mac OS X: 
 *  /Applications/Inkscape.app/Contents/Resources/extensions/. 
