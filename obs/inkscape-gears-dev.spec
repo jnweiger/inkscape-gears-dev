@@ -52,7 +52,7 @@ Authors
 -------
 	Nick (lp:~xepecine)
 	Gijs van Oort (lp:~gijsvanoort)
-        Jürgen Weigert (juewei@fabfolk.com)
+        Jürgen Weigert (juewei@fabmail.org)
         Mark Schafer <mschafer@wireframe.biz>
 
 
