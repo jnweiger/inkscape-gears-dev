@@ -4,7 +4,7 @@
 Copyright (C) 2007 Aaron Spike  (aaron @ ekips.org)
 Copyright (C) 2007 Tavmjong Bah (tavmjong @ free.fr)
 Copyright (C) http://cnc-club.ru/forum/viewtopic.php?f=33&t=434&p=2594#p2500
-Copyright (C) 2014 Jürgen Weigert (juewei@fabfolk.com)
+Copyright (C) 2014 Jürgen Weigert (juewei@fabmail.org)
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
