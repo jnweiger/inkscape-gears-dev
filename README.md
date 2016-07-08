@@ -21,6 +21,7 @@ Windows:
 *  navigate to the directory %APPDATA%/inkscape/extensions
 
 Mac OS X: 
+*  ~/.config/inkscape/extensions/    (prefered)
 *  /Applications/Inkscape.app/Contents/Resources/share/inkscape/extensions/
 
 
