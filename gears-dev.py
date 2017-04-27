@@ -5,6 +5,7 @@ Copyright (C) 2007 Aaron Spike  (aaron @ ekips.org)
 Copyright (C) 2007 Tavmjong Bah (tavmjong @ free.fr)
 Copyright (C) http://cnc-club.ru/forum/viewtopic.php?f=33&t=434&p=2594#p2500
 Copyright (C) 2014 Jürgen Weigert (juewei@fabmail.org)
+Copyright (C) 2017 David Grimberg (sentinel @ bardicgrove.org)
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -35,8 +36,12 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 			   Profile shift implemented (Advanced Tab), fixing 
 			   https://github.com/jnweiger/inkscape-gears-dev/issues/9
 2015-05-29 juewei 0.9 	ported to inkscape 0.91
-			AttributeError: 'module' object inkex has no attribute 'uutounit
+			AttributeError: 'module' object inkex has no attribute 'uutounit'
 			Fixed https://github.com/jnweiger/inkscape-gears-dev
+2017-04-27 sentinel 0.10  Fixed calc_circular_pitch to use unit_factor freeing the
+      Tooth system from any specific unitary system.  Previously Module was tied
+      to millimeters while Circular and Diametral Pitch were tied to inches.  Now
+      they take their units from the Unit input just like all the other measures.
 '''
 
 import inkex, simplestyle
@@ -502,18 +507,18 @@ class Gears(inkex.Effect):
         unit_factor = 1.0 / dialog_units
         return unit_factor
 
-    def calc_circular_pitch(self):
+    def calc_circular_pitch(self, unit_factor):
         """ We use math based on circular pitch.
             Expressed in inkscape units which is 90dpi 'pixel' units.
         """
         dimension = self.options.dimension
         # print >> self.tty, "unit_factor=%s, doc_units=%s, dialog_units=%s (%s), system=%s" % (unit_factor, doc_units, dialog_units, self.options.units, self.options.system)
         if   self.options.system == 'CP': # circular pitch
-            circular_pitch = dimension
+            circular_pitch = dimension * unit_factor
         elif self.options.system == 'DP': # diametral pitch 
-            circular_pitch = pi / dimension
+            circular_pitch = pi / (dimension / unit_factor)
         elif self.options.system == 'MM': # module (metric)
-            circular_pitch = dimension * pi / 25.4
+            circular_pitch = dimension * pi * unit_factor
         else:
             inkex.debug("unknown system '%s', try CP, DP, MM" % self.options.system)
         # circular_pitch defines the size in inches.
@@ -521,7 +526,7 @@ class Gears(inkex.Effect):
         # unit.
         # The internal inkscape unit is always px, 
         # it is independent of the doc_units!
-        return circular_pitch / uutounit(self, 1.0, 'in')
+        return circular_pitch
 
 
 
@@ -570,7 +575,7 @@ class Gears(inkex.Effect):
         # print >>self.tty, "accuracy_circular=%s accuracy_involute=%s" % (accuracy_circular, accuracy_involute)
         # Pitch (circular pitch): Length of the arc from one tooth to the next)
         # Pitch diameter: Diameter of pitch circle.
-        pitch = self.calc_circular_pitch()
+        pitch = self.calc_circular_pitch(unit_factor)
         # Replace section below with this call to get the combined gear_calculations() above
         (pitch_radius, base_radius, addendum, dedendum,
          outer_radius, root_radius, tooth) = gear_calculations(teeth, pitch, angle, clearance, self.options.internal_ring, self.options.profile_shift*0.01)
@@ -733,6 +738,7 @@ class Gears(inkex.Effect):
                           'Pressure Angle: %2.2f degrees' % (angle),
                           'Pitch diameter: %2.3f %s' % (pitch_radius * 2 / unit_factor, self.options.units),
                           'Outer diameter: %2.3f %s' % (outer_dia / unit_factor, self.options.units),
+                          'Root diameter:  %2.3f %s' % (root_radius * 2 / unit_factor, self.options.units),
                           'Base diameter:  %2.3f %s' % (base_radius * 2 / unit_factor, self.options.units)#,
                           #'Addendum:      %2.4f %s'  % (addendum / unit_factor, self.options.units),
                           #'Dedendum:      %2.4f %s'  % (dedendum / unit_factor, self.options.units)
