@@ -514,11 +514,11 @@ class Gears(inkex.Effect):
         dimension = self.options.dimension
         # print >> self.tty, "unit_factor=%s, doc_units=%s, dialog_units=%s (%s), system=%s" % (unit_factor, doc_units, dialog_units, self.options.units, self.options.system)
         if   self.options.system == 'CP': # circular pitch
-            circular_pitch = dimension * unit_factor
+            circular_pitch = dimension
         elif self.options.system == 'DP': # diametral pitch 
-            circular_pitch = pi / (dimension / unit_factor)
+            circular_pitch = pi / dimension
         elif self.options.system == 'MM': # module (metric)
-            circular_pitch = dimension * pi * unit_factor
+            circular_pitch = dimension * pi
         else:
             inkex.debug("unknown system '%s', try CP, DP, MM" % self.options.system)
         # circular_pitch defines the size in inches.
@@ -526,7 +526,7 @@ class Gears(inkex.Effect):
         # unit.
         # The internal inkscape unit is always px, 
         # it is independent of the doc_units!
-        return circular_pitch
+        return circular_pitch * unit_factor
 
 
 
