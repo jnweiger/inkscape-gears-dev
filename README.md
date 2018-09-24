@@ -24,6 +24,13 @@ Mac OS X:
 *  ~/.config/inkscape/extensions/    (prefered)
 *  /Applications/Inkscape.app/Contents/Resources/share/inkscape/extensions/
 
+Path-correction for use with Laser-Cutters
+==========================================
+There are path offset functions in inkscape. The 'dynamic offset' feature works great, except that one has to use the mouse
+to adjust an estimate of the offset. There is no way to enter an exaxt value in mm.
+
+https://wiki.fablab-nuernberg.de/w/Ding:Zahnr%C3%A4der_mit_Inkscape#Werkzeug-Korrektur
+
 
 References
 ==========
