@@ -5,7 +5,6 @@ Copyright (C) 2007 Aaron Spike  (aaron @ ekips.org)
 Copyright (C) 2007 Tavmjong Bah (tavmjong @ free.fr)
 Copyright (C) http://cnc-club.ru/forum/viewtopic.php?f=33&t=434&p=2594#p2500
 Copyright (C) 2014 Jürgen Weigert (juewei@fabmail.org)
-Copyright (C) 2020 Spadino (spada.andrea @ gmail DOT com)
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -38,23 +37,21 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 2015-05-29 juewei 0.9 	ported to inkscape 0.91
 			AttributeError: 'module' object inkex has no attribute 'uutounit
 			Fixed https://github.com/jnweiger/inkscape-gears-dev
-2020-7-4   spadino 1.0 ported to inkscape 1.0
 '''
 
 import inkex, simplestyle
-from lxml import etree
 from os import devnull # for debugging
 from math import pi, cos, sin, tan, radians, degrees, ceil, asin, acos, sqrt
 two_pi = 2 * pi
 
 
-__version__ = '1.0'
+__version__ = '0.9'
 
 def uutounit(self,nn,uu):
   try:
-    return self.svg.uutounit(nn,uu)		# inkscape 1.0 <
+    return self.uutounit(nn,uu)		# inkscape 0.91
   except:
-    return inkex.uutounit(nn,uu)	# inkscape 0.91 >
+    return inkex.uutounit(nn,uu)	# inkscape 0.48
 
 def linspace(a,b,n):
     """ return list of linear interp of a to b in n steps
@@ -355,127 +352,127 @@ class Gears(inkex.Effect):
         inkex.Effect.__init__(self)
         # an alternate way to get debug info:
         # could use inkex.debug(string) instead...
-        # try:
-        #     self.tty = open("/dev/tty", 'w')
-        # except:
-        #     self.tty = open(devnull, 'w')  # '/dev/null' for POSIX, 'nul' for Windows.
-        #     # print >>self.tty, "gears-dev " + __version__
-
-        self.arg_parser.add_argument("-t", "--teeth",
-                                     action="store", type=int,
+        try:
+            self.tty = open("/dev/tty", 'w')
+        except:
+            self.tty = open(devnull, 'w')  # '/dev/null' for POSIX, 'nul' for Windows.
+            # print >>self.tty, "gears-dev " + __version__
+        self.OptionParser.add_option("-t", "--teeth",
+                                     action="store", type="int",
                                      dest="teeth", default=24,
                                      help="Number of teeth")
         
-        self.arg_parser.add_argument("-s", "--system",
-                                     action="store", type=str,
+        self.OptionParser.add_option("-s", "--system",
+                                     action="store", type="string", 
                                      dest="system", default='CP',
                                      help="Select system: 'CP' (Cyclic Pitch (default)), 'DP' (Diametral Pitch), 'MM' (Metric Module)")
         
-        self.arg_parser.add_argument("-d", "--dimension",
-                                     action="store", type=float,
+        self.OptionParser.add_option("-d", "--dimension",
+                                     action="store", type="float",
                                      dest="dimension", default=1.0,
                                      help="Tooth size, depending on system (which defaults to CP)")
 
 
-        self.arg_parser.add_argument("-a", "--angle",
-                                     action="store", type=float,
+        self.OptionParser.add_option("-a", "--angle",
+                                     action="store", type="float",
                                      dest="angle", default=20.0,
                                      help="Pressure Angle (common values: 14.5, 20, 25 degrees)")
 
-        self.arg_parser.add_argument("-p", "--profile-shift",
-                                     action="store", type=float,
+        self.OptionParser.add_option("-p", "--profile-shift",
+                                     action="store", type="float",
                                      dest="profile_shift", default=20.0,
                                      help="Profile shift [in percent of the module]. Negative values help against undercut")
 
-        self.arg_parser.add_argument("-u", "--units",
-                                     action="store", type=str,
+        self.OptionParser.add_option("-u", "--units",
+                                     action="store", type="string",
                                      dest="units", default='mm',
                                      help="Units this dialog is using")
 
-        self.arg_parser.add_argument("-A", "--accuracy",
-                                     action="store", type=int,
+        self.OptionParser.add_option("-A", "--accuracy",
+                                     action="store", type="int",
                                      dest="accuracy", default=0,
                                      help="Accuracy of involute: automatic: 5..20 (default), best: 20(default), medium 10, low: 5; good acuracy is important with a low tooth count")
         # Clearance: Radial distance between top of tooth on one gear to bottom of gap on another.
-        self.arg_parser.add_argument("-cl", "--clearance",
-                                     action="store", type=float,
+        self.OptionParser.add_option("", "--clearance",
+                                     action="store", type="float",
                                      dest="clearance", default=0.0,
                                      help="Clearance between bottom of gap of this gear and top of tooth of another")
 
-        self.arg_parser.add_argument("-an", "--annotation",
-                                     action="store", type=inkex.Boolean, 
+        self.OptionParser.add_option("", "--annotation",
+                                     action="store", type="inkbool", 
                                      dest="annotation", default=False,
                                      help="Draw annotation text")
 
-        self.arg_parser.add_argument("-i", "--internal-ring",
-                                     action="store", type=inkex.Boolean,
+        self.OptionParser.add_option("-i", "--internal-ring",
+                                     action="store", type="inkbool",
                                      dest="internal_ring", default=False,
                                      help="Ring (or Internal) gear style (default: normal spur gear)")
 
-        self.arg_parser.add_argument("-mh", "--mount-hole",
-                                     action="store", type=float,
+        self.OptionParser.add_option("", "--mount-hole",
+                                     action="store", type="float",
                                      dest="mount_hole", default=5,
                                      help="Mount hole diameter")
 
-        self.arg_parser.add_argument("-md", "--mount-diameter",
-                                     action="store", type=float,
+        self.OptionParser.add_option("", "--mount-diameter",
+                                     action="store", type="float",
                                      dest="mount_diameter", default=15,
                                      help="Mount support diameter")
 
-        self.arg_parser.add_argument("-sc", "--spoke-count",
-                                     action="store", type=int,
+        self.OptionParser.add_option("", "--spoke-count",
+                                     action="store", type="int",
                                      dest="spoke_count", default=3,
                                      help="Spokes count")
 
-        self.arg_parser.add_argument("-sw", "--spoke-width",
-                                     action="store", type=float,
+        self.OptionParser.add_option("", "--spoke-width",
+                                     action="store", type="float",
                                      dest="spoke_width", default=5,
                                      help="Spoke width")
 
-        self.arg_parser.add_argument("-hr", "--holes-rounding",
-                                     action="store", type=float,
+        self.OptionParser.add_option("", "--holes-rounding",
+                                     action="store", type="float",
                                      dest="holes_rounding", default=5,
                                      help="Holes rounding")
 
-        self.arg_parser.add_argument("-at", "--active-tab",
-                                     action="store", type=str,
+        self.OptionParser.add_option("", "--active-tab",
+                                     action="store", type="string",
                                      dest="active_tab", default='',
                                      help="Active tab. Not used now.")
                         
-        self.arg_parser.add_argument("-x", "--centercross",
-                                     action="store", type=inkex.Boolean,
+        self.OptionParser.add_option("-x", "--centercross",
+                                     action="store", type="inkbool", 
                                      dest="centercross", default=False,
                                      help="Draw cross in center")
         
-        self.arg_parser.add_argument("-c", "--pitchcircle",
-                                     action="store", type=inkex.Boolean,
+        self.OptionParser.add_option("-c", "--pitchcircle",
+                                     action="store", type="inkbool",
                                      dest="pitchcircle", default=False,
                                      help="Draw pitch circle (for mating)")
 
-        self.arg_parser.add_argument("-r", "--draw-rack",
-                                     action="store", type=inkex.Boolean,
+        self.OptionParser.add_option("-r", "--draw-rack",
+                                     action="store", type="inkbool", 
                                      dest="drawrack", default=False,
                                      help="Draw rack gear instead of spur gear")
         
-        self.arg_parser.add_argument("-rl", "--rack-teeth-length",
-                                     action="store", type=int,
+        self.OptionParser.add_option("", "--rack-teeth-length",
+                                     action="store", type="int",
                                      dest="teeth_length", default=12,
                                      help="Length (in teeth) of rack")
         
-        self.arg_parser.add_argument("-rh", "--rack-base-height",
-                                     action="store", type=float,
+        self.OptionParser.add_option("", "--rack-base-height",
+                                     action="store", type="float",
                                      dest="base_height", default=8,
                                      help="Height of base of rack")
         
-        self.arg_parser.add_argument("-rt", "--rack-base-tab",
-                                     action="store", type=float,
+        self.OptionParser.add_option("", "--rack-base-tab",
+                                     action="store", type="float",
                                      dest="base_tab", default=14,
                                      help="Length of tabs on ends of rack")
 
-        self.arg_parser.add_argument("-ua", "--undercut-alert",
-                                     action="store", type=inkex.Boolean,
+        self.OptionParser.add_option("", "--undercut-alert",
+                                     action="store", type="inkbool", 
                                      dest="undercut_alert", default=False,
                                      help="Let the user confirm a warning dialog if undercut occurs. This dialog also shows helpful hints against undercut")
+
     
     def add_text(self, node, text, position, text_height=12):
         """ Create and insert a single line of text into the svg under node.
@@ -585,15 +582,14 @@ class Gears(inkex.Effect):
             min_teeth = int(ceil(undercut_min_teeth(angle, 1.0)))
             min_angle = undercut_min_angle(teeth, 1.0) + .1
             max_k = undercut_max_k(teeth, angle)
-            msg = "Undercut Warning: This gear (%d teeth) will not work well.\nTry tooth count of %d or more,\nor a pressure angle of %.1f [deg] or more,\nor try a profile shift of %d %%.\nOr other decent combinations." % (teeth, min_teeth, min_angle, int(100. * max_k) - 100.)
-            # alas annotation cannot handle the degree symbol.  Also it ignore
-            # newlines.
+            msg = "Undercut Warning: This gear (%d teeth) will not work well.\nTry tooth count of %d or more,\nor a pressure angle of %.1f [deg] or more,\nor try a profile shift of %d %%.\nOr other decent combinations." % (teeth, min_teeth, min_angle, int(100.*max_k)-100.)
+            # alas annotation cannot handle the degree symbol. Also it ignore newlines.
             # so split and make a list
             warnings.extend(msg.split("\n"))
-	    #if self.options.undercut_alert: 
-     #           inkex.debug(msg)
-	    #else:
-     #           print >> self.tty, msg
+	    if self.options.undercut_alert:
+                inkex.debug(msg)
+	    else:
+                print >>self.tty, msg
 
         # All base calcs done. Start building gear
         points = generate_spur_points(teeth, base_radius, pitch_radius, outer_radius, root_radius, accuracy_involute, accuracy_circular)
@@ -665,30 +661,28 @@ class Gears(inkex.Effect):
         
         # Embed gear in group to make animation easier:
         #  Translate group, Rotate path.
-        t = 'translate(' + str( self.svg.namedview.center[0] ) + ',' + str( self.svg.namedview.center[1] ) + ')'
+        t = 'translate(' + str( self.view_center[0] ) + ',' + str( self.view_center[1] ) + ')'
         g_attribs = { inkex.addNS('label','inkscape'):'Gear' + str( teeth ),
                       inkex.addNS('transform-center-x','inkscape'): str(-bbox_center[0]),
                       inkex.addNS('transform-center-y','inkscape'): str(-bbox_center[1]),
                       'transform':t,
                       'info':'N:'+str(teeth)+'; Pitch:'+ str(pitch) + '; Pressure Angle: '+str(angle) }
         # add the group to the current layer
-        g = etree.SubElement(self.svg.get_current_layer(), 'g', g_attribs )
+        g = inkex.etree.SubElement(self.current_layer, 'g', g_attribs )
 
         # Create gear path under top level group
         style = { 'stroke': path_stroke, 'fill': path_fill, 'stroke-width': path_stroke_width }
-        gear_attribs = { 'style': str(inkex.Style(style)), 'd': path }
-        gear = etree.SubElement(g, inkex.addNS('path','svg'), gear_attribs )
+        gear_attribs = { 'style': simplestyle.formatStyle(style), 'd': path }
+        gear = inkex.etree.SubElement(g, inkex.addNS('path','svg'), gear_attribs )
 
         # Add center
         if centercross:
-            style = {'stroke': path_stroke, 'fill': path_fill,
-                     'stroke-width': path_stroke_light}
-            cs = str(pitch / 3)  # centercross length
+            style = { 'stroke': path_stroke, 'fill': path_fill, 'stroke-width': path_stroke_light }
+            cs = str(pitch / 3) # centercross length
             d = 'M-'+cs+',0L'+cs+',0M0,-'+cs+'L0,'+cs  # 'M-10,0L10,0M0,-10L0,10'
-            center_attribs = {inkex.addNS('label', 'inkscape'): 'Center cross',
-                              'style': str(inkex.Style(style)), 'd': d}
-            center = etree.SubElement(
-                g, inkex.addNS('path', 'svg'), center_attribs)
+            center_attribs = { inkex.addNS('label','inkscape'): 'Center cross',
+                               'style': simplestyle.formatStyle(style), 'd': d }
+            center = inkex.etree.SubElement(g, inkex.addNS('path','svg'), center_attribs )
 
         # Add pitch circle (for mating)
         if pitchcircle:
@@ -754,7 +748,7 @@ class Gears(inkex.Effect):
 
 if __name__ == '__main__':
     e = Gears()
-    e.run()
+    e.affect()
 
 # Notes
 

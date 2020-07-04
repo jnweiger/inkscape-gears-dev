@@ -1,6 +1,8 @@
 inkscape-extensions-gears-dev
 =============================
 
+Updated to use on inkscape 1.x
+
 Enhanced version of the well known gears extension, allows spokes, center cross, metric module, best evolute shape ...
 
 This is based on http://cnc-club.ru/forum/viewtopic.php?f=33&t=434&p=2594#p2500, with my own patches added ontop:
