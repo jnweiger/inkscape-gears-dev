@@ -4,7 +4,7 @@
 	<id>com.gihub.jnweiger.inkscape-gears-dev</id>
 	<!-- org.ekips.filter.gears-dev (where did this come from?) -->
 	<dependency type="executable" location="extensions">gears-dev.py</dependency>
-	
+	<dependency type="executable" location="extensions">inkex.py</dependency>
 	<param name='active-tab' type="notebook">
 		<page name="Gear" _gui-text="Gears">
 			<param name="teeth"     type="int"     min="3"    max="1200"    _gui-text="Number of teeth (3..1200)">24</param>
