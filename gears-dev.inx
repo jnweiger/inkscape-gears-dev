@@ -9,10 +9,16 @@
 		<page name="Gear" _gui-text="Gears">
 			<param name="teeth"     type="int"     min="3"    max="1200"    _gui-text="Number of teeth (3..1200)">24</param>
 			<param name="dimension" type="float"   min="0.1"  max="1000.0"	precision="5"	_gui-text="Tooth size (Module, CP, DP)">1.0</param>
+			<param name="units"     type="optiongroup" appearance="minimal" _gui-text="Units">
+				<option value="mm">mm</option>
+				<option value="cm">cm</option>
+				<option value="in">in</option>
+				<option value="pt">pt</option>
+				<option value="px">px</option></param>
 			<param name="system"    _gui-text="Tooth system" type="optiongroup">
-				<_option value="MM">Module (mm)</_option>
-				<_option value="CP">Circular Pitch (in)</_option>
-				<_option value="DP">Diametral Pitch (in)</_option>
+				<_option value="MM">Module</_option>
+				<_option value="CP">Circular Pitch</_option>
+				<_option value="DP">Diametral Pitch</_option>
 			</param>
 			<_param name="help"     type="description" xml:space="preserve">------------------------------</_param>
 			<param name="angle"     type="float"   min="5.0"  max="45.0"   	precision="1"	_gui-text="Pressure angle (5..45)">20.0</param>
@@ -21,12 +27,7 @@
 			<param name="annotation"  type="boolean" _gui-text="Draw annotation text">false</param>
 		</page>	
 		<page name='advanced' _gui-text='Advanced options'>
-			<param name="units"     type="optiongroup" appearance="minimal" _gui-text="Units">
-				<option value="mm">mm</option>
-				<option value="cm">cm</option>
-				<option value="in">in</option>
-				<option value="pt">pt</option>
-				<option value="px">px</option></param>
+
 			<param name="clearance" type="float"   min="0"    max="100"     precision="3"	_gui-text="Clearance (bottom)">0</param>
 			<param name="profile-shift" type="float" min="-50" max="50"     precision="1"	_gui-text="Profile shift [% of module]">0</param>
 			<param name="internal-ring"			type="boolean" _gui-text="Ring gear (Internal gear)">false</param>
@@ -65,11 +66,12 @@
 		</page>
 		<page name="Usage1" _gui-text="Usage-core">
 			<_param name="gearuse" type="description" xml:space="preserve">Gears:
+Version 1.1
 
 Be sure to set the document properties to inches or mm if you want real-world dimensions.
 
 For gears to mesh - the size of the teeth on each gear must be the same.
-This is why tooth count and Circular Pitch or Metric Module is used to define gears and not radius.
+This is why tooth count and Circular Pitch or Metric Module (and not radius) is used to define gears.
 
 The Circular Pitch, p, is the distance between adjacent teeth around the Pitch Circle.
   p = pi * D / z
@@ -88,7 +90,7 @@ Pressure angle [in degrees]. Usually 20. Historical: 14.5; High torque gears: 25
 The higher the pressure angle, the stronger the teeth. With higher pressure angles, more effort is needed to turn the gears (due to friction).
 
 
-Caution: Undercut is currently not generated. E.g. a gear at pressure angle 20 deg and less than 17 teeth would either need a (negative!) profile shifting or will cause undercut. We only produce a warning.
+Caution: Undercut is not generated. E.g. a gear at pressure angle 20 deg and less than 17 teeth would either need a (negative!) profile shifting or will cause undercut. We only produce a warning.
 
 
 

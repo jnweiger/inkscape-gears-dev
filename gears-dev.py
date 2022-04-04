@@ -5,6 +5,7 @@ Copyright (C) 2007 Aaron Spike  (aaron @ ekips.org)
 Copyright (C) 2007 Tavmjong Bah (tavmjong @ free.fr)
 Copyright (C) http://cnc-club.ru/forum/viewtopic.php?f=33&t=434&p=2594#p2500
 Copyright (C) 2014 Jürgen Weigert (juewei@fabmail.org)
+Copyright (C) 2017 David Grimberg (sentinel @ bardicgrove.org)
 Copyright (C) 2020 Spadino (spada.andrea @ gmail DOT com)
 
 This program is free software; you can redistribute it and/or modify
@@ -24,7 +25,7 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 2014-03-20 jw@suse.de 0.2  Option --accuracy=0 for automatic added.
 2014-03-21                 sent upstream: https://bugs.launchpad.net/inkscape/+bug/1295641
 2014-03-21 jw@suse.de 0.3  Fixed center of rotation for gears with odd number of teeth.
-2014-04-04 juewei     0.7  Revamped calc_unit_factor(). 
+2014-04-04 juewei     0.7  Revamped calc_unit_factor().
 2014-04-05 juewei    0.7a  Correctly positioned rack gear.
                        The geometry above the meshing line is wrong.
 2014-04-06 juewei    0.7b  Undercut detection added. Reference:
@@ -32,23 +33,26 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
                Manually merged https://github.com/jnweiger/inkscape-gears-dev/pull/15
 2014-04-07 juewei    0.7c  Manually merged https://github.com/jnweiger/inkscape-gears-dev/pull/17
 2014-04-09 juewei    0.8   Fixed https://github.com/jnweiger/inkscape-gears-dev/issues/19
-			   Ring gears are ready for production now. Thanks neon22 for driving this.
-			   Profile shift implemented (Advanced Tab), fixing 
-			   https://github.com/jnweiger/inkscape-gears-dev/issues/9
+                           Ring gears are ready for production now. Thanks neon22 for driving this.
+                           Profile shift implemented (Advanced Tab), fixing
+                           https://github.com/jnweiger/inkscape-gears-dev/issues/9
 2015-05-29 juewei 0.9 	ported to inkscape 0.91
-			AttributeError: 'module' object inkex has no attribute 'uutounit
-			Fixed https://github.com/jnweiger/inkscape-gears-dev
+                        AttributeError: 'module' object inkex has no attribute 'uutounit
+                        Fixed https://github.com/jnweiger/inkscape-gears-dev
 2020-7-4   spadino 1.0 ported to inkscape 1.0
+2022-04-04 juewei+ssentinel 1.1 Fixed calc_circular_pitch to use unit_factor freeing the
+                        Tooth system from any specific unitary system.  Previously Module was tied
+                        to millimeters while Circular and Diametral Pitch were tied to inches.  Now
+                        they take their units from the Unit input just like all the other measures.
 '''
 
 import inkex, simplestyle
-from lxml import etree
 from os import devnull # for debugging
 from math import pi, cos, sin, tan, radians, degrees, ceil, asin, acos, sqrt
 two_pi = 2 * pi
 
 
-__version__ = '1.0'
+__version__ = '1.1'             # CAUTION: keep in sync with gears-dev.inx:69
 
 def uutounit(self,nn,uu):
   try:
@@ -73,7 +77,7 @@ def point_on_circle(radius, angle):
     x = radius * cos(angle)
     y = radius * sin(angle)
     return (x, y)
-    
+
 def points_to_bbox(p):
     """ from a list of points (x,y pairs)
         - return the lower-left xy and upper-right xy
@@ -94,7 +98,7 @@ def points_to_bbox_center(p):
     """
     bbox = points_to_bbox(p)
     return ((bbox[0]+bbox[2])/2.0, (bbox[1]+bbox[3])/2.0)
-                
+
 def points_to_svgd(p):
     " convert list of points into a closed SVG path list"
     f = p[0]
@@ -108,7 +112,7 @@ def points_to_svgd(p):
 def draw_SVG_circle(parent, r, cx, cy, name, style):
     " add an SVG circle entity to parent "
     circ_attribs = {'style': simplestyle.formatStyle(style),
-                    'cx': str(cx), 'cy': str(cy), 
+                    'cx': str(cx), 'cy': str(cy),
                     'r': str(r),
                     inkex.addNS('label','inkscape'):name}
     circle = inkex.etree.SubElement(parent, inkex.addNS('circle','svg'), circ_attribs )
@@ -116,8 +120,8 @@ def draw_SVG_circle(parent, r, cx, cy, name, style):
 
 ### Undercut support functions
 def undercut_min_teeth(pitch_angle, k=1.0):
-    """ computes the minimum tooth count for a 
-        spur gear so that no undercut with the given pitch_angle (in deg) 
+    """ computes the minimum tooth count for a
+        spur gear so that no undercut with the given pitch_angle (in deg)
         and an addendum = k * metric_module, where 0 < k < 1
     Note:
     The return value should be rounded upwards for perfect safety. E.g.
@@ -150,7 +154,7 @@ def have_undercut(teeth, pitch_angle=20.0, k=1.0):
 ## gather all basic gear calculations in one place
 def gear_calculations(num_teeth, circular_pitch, pressure_angle, clearance=0, ring_gear=False, profile_shift=0.):
     """ Put base calcs for spur/ring gears in one place.
-        - negative profile shifting helps against undercut. 
+        - negative profile shifting helps against undercut.
     """
     diametral_pitch = pi / circular_pitch
     pitch_diameter = num_teeth / diametral_pitch
@@ -181,13 +185,13 @@ def gear_calculations(num_teeth, circular_pitch, pressure_angle, clearance=0, ri
             tooth_thickness
             )
 
- 
+
 def generate_rack_points(tooth_count, pitch, addendum, pressure_angle,
                        base_height, tab_length, clearance=0, draw_guides=False):
         """ Return path (suitable for svg) of the Rack gear.
             - rack gear uses straight sides
                 - involute on a circle of infinite radius is a simple linear ramp
-            - the meshing circle touches at y = 0, 
+            - the meshing circle touches at y = 0,
             - the highest elevation of the teeth is at y = +addendum
             - the lowest elevation of the teeth is at y = -addendum-clearance
             - the base_height extends downwards from the lowest elevation.
@@ -222,7 +226,7 @@ def generate_rack_points(tooth_count, pitch, addendum, pressure_angle,
             points.append((x-tasc, base_top))
             points.append((x+tas, -addendum))
             points.append((x+spacing-tas, -addendum))
-            points.append((x+spacing+tasc, base_top)) 
+            points.append((x+spacing+tasc, base_top))
             x += pitch
         x -= spacing # remove last adjustment
         # add base on RHS
@@ -241,7 +245,7 @@ def generate_rack_points(tooth_count, pitch, addendum, pressure_angle,
             guide_path = points_to_svgd(p)
         # return points ready for use in an SVG 'path'
         return (points, guide_path)
-    
+
 
 def generate_spur_points(teeth, base_radius, pitch_radius, outer_radius, root_radius, accuracy_involute, accuracy_circular):
     """ given a set of core gear params
@@ -267,7 +271,7 @@ def generate_spur_points(teeth, base_radius, pitch_radius, outer_radius, root_ra
 
         pitch2 = c + half_thick_angle
         base2  = pitch2 + pitch_to_base_angle
-        offsetangles2 = [ base2 - x for x in angles] 
+        offsetangles2 = [ base2 - x for x in angles]
         points2 = [ point_on_circle( radii[i], offsetangles2[i]) for i in range(0,len(radii)) ]
 
         points_on_outer_radius = [ point_on_circle(outer_radius, x) for x in linspace(offsetangles1[-1], offsetangles2[-1], accuracy_circular) ]
@@ -310,13 +314,13 @@ def generate_spokes_path(root_radius, spoke_width, spoke_count, mount_radius, mo
         else:
             mount_radius = mount_hole/2 + adj_factor # small fix
             messages.append("Mount support too small. Auto increased to %2.2f%s." % (mount_radius/unit_factor*2, unit_label))
-            
+
     # then check to see if cross-over on spoke width
     if spoke_width * spoke_count +0.5 >= two_pi * mount_radius:
         adj_factor = 1.2 # wrong value. its probably one of the points distances calculated below
         mount_radius += adj_factor
         messages.append("Too many spokes. Increased Mount support by %2.3f%s" % (adj_factor/unit_factor, unit_label))
-    
+
     # check for collision with outer rim
     if r_outer <= mount_radius:
         # not enough room to draw spokes so cancel
@@ -365,12 +369,12 @@ class Gears(inkex.Effect):
                                      action="store", type=int,
                                      dest="teeth", default=24,
                                      help="Number of teeth")
-        
+
         self.arg_parser.add_argument("-s", "--system",
                                      action="store", type=str,
                                      dest="system", default='CP',
                                      help="Select system: 'CP' (Cyclic Pitch (default)), 'DP' (Diametral Pitch), 'MM' (Metric Module)")
-        
+
         self.arg_parser.add_argument("-d", "--dimension",
                                      action="store", type=float,
                                      dest="dimension", default=1.0,
@@ -397,13 +401,13 @@ class Gears(inkex.Effect):
                                      dest="accuracy", default=0,
                                      help="Accuracy of involute: automatic: 5..20 (default), best: 20(default), medium 10, low: 5; good acuracy is important with a low tooth count")
         # Clearance: Radial distance between top of tooth on one gear to bottom of gap on another.
-        self.arg_parser.add_argument("-cl", "--clearance",
+        self.arg_parser.add_argument("", "--clearance",
                                      action="store", type=float,
                                      dest="clearance", default=0.0,
                                      help="Clearance between bottom of gap of this gear and top of tooth of another")
 
-        self.arg_parser.add_argument("-an", "--annotation",
-                                     action="store", type=inkex.Boolean, 
+        self.arg_parser.add_argument("", "--annotation",
+                                     action="store", type=inkex.Boolean,
                                      dest="annotation", default=False,
                                      help="Draw annotation text")
 
@@ -412,41 +416,41 @@ class Gears(inkex.Effect):
                                      dest="internal_ring", default=False,
                                      help="Ring (or Internal) gear style (default: normal spur gear)")
 
-        self.arg_parser.add_argument("-mh", "--mount-hole",
+        self.arg_parser.add_argument("", "--mount-hole",
                                      action="store", type=float,
                                      dest="mount_hole", default=5,
                                      help="Mount hole diameter")
 
-        self.arg_parser.add_argument("-md", "--mount-diameter",
+        self.arg_parser.add_argument("", "--mount-diameter",
                                      action="store", type=float,
                                      dest="mount_diameter", default=15,
                                      help="Mount support diameter")
 
-        self.arg_parser.add_argument("-sc", "--spoke-count",
+        self.arg_parser.add_argument("", "--spoke-count",
                                      action="store", type=int,
                                      dest="spoke_count", default=3,
                                      help="Spokes count")
 
-        self.arg_parser.add_argument("-sw", "--spoke-width",
+        self.arg_parser.add_argument("", "--spoke-width",
                                      action="store", type=float,
                                      dest="spoke_width", default=5,
                                      help="Spoke width")
 
-        self.arg_parser.add_argument("-hr", "--holes-rounding",
+        self.arg_parser.add_argument("", "--holes-rounding",
                                      action="store", type=float,
                                      dest="holes_rounding", default=5,
                                      help="Holes rounding")
 
-        self.arg_parser.add_argument("-at", "--active-tab",
+        self.arg_parser.add_argument("", "--active-tab",
                                      action="store", type=str,
                                      dest="active_tab", default='',
                                      help="Active tab. Not used now.")
-                        
+
         self.arg_parser.add_argument("-x", "--centercross",
                                      action="store", type=inkex.Boolean,
                                      dest="centercross", default=False,
                                      help="Draw cross in center")
-        
+
         self.arg_parser.add_argument("-c", "--pitchcircle",
                                      action="store", type=inkex.Boolean,
                                      dest="pitchcircle", default=False,
@@ -456,27 +460,28 @@ class Gears(inkex.Effect):
                                      action="store", type=inkex.Boolean,
                                      dest="drawrack", default=False,
                                      help="Draw rack gear instead of spur gear")
-        
-        self.arg_parser.add_argument("-rl", "--rack-teeth-length",
+
+        self.arg_parser.add_argument("", "--rack-teeth-length",
                                      action="store", type=int,
                                      dest="teeth_length", default=12,
                                      help="Length (in teeth) of rack")
-        
-        self.arg_parser.add_argument("-rh", "--rack-base-height",
+
+        self.arg_parser.add_argument("", "--rack-base-height",
                                      action="store", type=float,
                                      dest="base_height", default=8,
                                      help="Height of base of rack")
-        
-        self.arg_parser.add_argument("-rt", "--rack-base-tab",
+
+        self.arg_parser.add_argument("", "--rack-base-tab",
                                      action="store", type=float,
                                      dest="base_tab", default=14,
                                      help="Length of tabs on ends of rack")
 
-        self.arg_parser.add_argument("-ua", "--undercut-alert",
+        self.arg_parser.add_argument("", "--undercut-alert",
                                      action="store", type=inkex.Boolean,
                                      dest="undercut_alert", default=False,
                                      help="Let the user confirm a warning dialog if undercut occurs. This dialog also shows helpful hints against undercut")
-    
+
+
     def add_text(self, node, text, position, text_height=12):
         """ Create and insert a single line of text into the svg under node.
             - use 'text' type and label as anootation
@@ -493,7 +498,7 @@ class Gears(inkex.Effect):
         line = inkex.etree.SubElement(node, inkex.addNS('text','svg'), line_attribs)
         line.text = text
 
-           
+
     def calc_unit_factor(self):
         """ return the scale factor for all dimension conversions.
             - The document units are always irrelevant as
@@ -505,7 +510,8 @@ class Gears(inkex.Effect):
         unit_factor = 1.0 / dialog_units
         return unit_factor
 
-    def calc_circular_pitch(self):
+
+    def calc_circular_pitch(self, unit_factor):
         """ We use math based on circular pitch.
             Expressed in inkscape units which is 90dpi 'pixel' units.
         """
@@ -513,24 +519,24 @@ class Gears(inkex.Effect):
         # print >> self.tty, "unit_factor=%s, doc_units=%s, dialog_units=%s (%s), system=%s" % (unit_factor, doc_units, dialog_units, self.options.units, self.options.system)
         if   self.options.system == 'CP': # circular pitch
             circular_pitch = dimension
-        elif self.options.system == 'DP': # diametral pitch 
+        elif self.options.system == 'DP': # diametral pitch
             circular_pitch = pi / dimension
         elif self.options.system == 'MM': # module (metric)
-            circular_pitch = dimension * pi / 25.4
+            circular_pitch = dimension * pi
         else:
             inkex.debug("unknown system '%s', try CP, DP, MM" % self.options.system)
         # circular_pitch defines the size in inches.
-        # We divide the internal inch factor (px = 90dpi), to remove the inch 
+        # We divide the internal inch factor (px = 90dpi), to remove the inch
         # unit.
-        # The internal inkscape unit is always px, 
+        # The internal inkscape unit is always px,
         # it is independent of the doc_units!
-        return circular_pitch / uutounit(self, 1.0, 'in')
+        return circular_pitch * unit_factor
 
 
 
     def effect(self):
         """ Calculate Gear factors from inputs.
-            - Make list of radii, angles, and centers for each tooth and 
+            - Make list of radii, angles, and centers for each tooth and
               iterate through them
             - Turn on other visual features e.g. cross, rack, annotations, etc
         """
@@ -540,13 +546,13 @@ class Gears(inkex.Effect):
         path_stroke_light  = path_stroke_width * 0.25   # guides are thinner
         #
         warnings = [] # list of extra messages to be shown in annotations
-        # calculate unit factor for units defined in dialog. 
+        # calculate unit factor for units defined in dialog.
         unit_factor = self.calc_unit_factor()
         # User defined options
         teeth = self.options.teeth
         # Angle of tangent to tooth at circular pitch wrt radial line.
-        angle = self.options.angle 
-        # Clearance: Radial distance between top of tooth on one gear to 
+        angle = self.options.angle
+        # Clearance: Radial distance between top of tooth on one gear to
         # bottom of gap on another.
         clearance = self.options.clearance * unit_factor
         mount_hole = self.options.mount_hole * unit_factor
@@ -562,7 +568,7 @@ class Gears(inkex.Effect):
         accuracy_involute = 20 # Number of points of the involute curve
         accuracy_circular = 9  # Number of points on circular parts
         if self.options.accuracy is not None:
-            if self.options.accuracy == 0:  
+            if self.options.accuracy == 0:
                 # automatic
                 if   teeth < 10: accuracy_involute = 20
                 elif teeth < 30: accuracy_involute = 12
@@ -573,7 +579,7 @@ class Gears(inkex.Effect):
         # print >>self.tty, "accuracy_circular=%s accuracy_involute=%s" % (accuracy_circular, accuracy_involute)
         # Pitch (circular pitch): Length of the arc from one tooth to the next)
         # Pitch diameter: Diameter of pitch circle.
-        pitch = self.calc_circular_pitch()
+        pitch = self.calc_circular_pitch(unit_factor)
         # Replace section below with this call to get the combined gear_calculations() above
         (pitch_radius, base_radius, addendum, dedendum,
          outer_radius, root_radius, tooth) = gear_calculations(teeth, pitch, angle, clearance, self.options.internal_ring, self.options.profile_shift*0.01)
@@ -586,54 +592,16 @@ class Gears(inkex.Effect):
             min_angle = undercut_min_angle(teeth, 1.0) + .1
             max_k = undercut_max_k(teeth, angle)
             msg = "Undercut Warning: This gear (%d teeth) will not work well.\nTry tooth count of %d or more,\nor a pressure angle of %.1f [deg] or more,\nor try a profile shift of %d %%.\nOr other decent combinations." % (teeth, min_teeth, min_angle, int(100. * max_k) - 100.)
-            # alas annotation cannot handle the degree symbol.  Also it ignore
-            # newlines.
+            # Alas annotation cannot handle the degree symbol.  Also it ignore newlines.
             # so split and make a list
             warnings.extend(msg.split("\n"))
-	    #if self.options.undercut_alert: 
-     #           inkex.debug(msg)
-	    #else:
-     #           print >> self.tty, msg
+            if self.options.undercut_alert:
+                inkex.debug(msg)
+            #else:
+            #    print >> self.tty, msg
 
         # All base calcs done. Start building gear
         points = generate_spur_points(teeth, base_radius, pitch_radius, outer_radius, root_radius, accuracy_involute, accuracy_circular)
-        
-##        half_thick_angle = two_pi / (4.0 * teeth ) #?? = pi / (2.0 * teeth)
-##        pitch_to_base_angle  = involute_intersect_angle( base_radius, pitch_radius )
-##        pitch_to_outer_angle = involute_intersect_angle( base_radius, outer_radius ) - pitch_to_base_angle
-##
-##        start_involute_radius = max(base_radius, root_radius)
-##        radii = linspace(start_involute_radius, outer_radius, accuracy_involute)
-##        angles = [involute_intersect_angle(base_radius, r) for r in radii]
-##
-##        centers = [(x * two_pi / float( teeth) ) for x in range( teeth ) ]
-##        points = []
-##
-##        for c in centers:
-##            # Angles
-##            pitch1 = c - half_thick_angle
-##            base1  = pitch1 - pitch_to_base_angle
-##            offsetangles1 = [ base1 + x for x in angles]
-##            points1 = [ point_on_circle( radii[i], offsetangles1[i]) for i in range(0,len(radii)) ]
-##
-##            pitch2 = c + half_thick_angle
-##            base2  = pitch2 + pitch_to_base_angle
-##            offsetangles2 = [ base2 - x for x in angles] 
-##            points2 = [ point_on_circle( radii[i], offsetangles2[i]) for i in range(0,len(radii)) ]
-##
-##            points_on_outer_radius = [ point_on_circle(outer_radius, x) for x in linspace(offsetangles1[-1], offsetangles2[-1], accuracy_circular) ]
-##
-##            if root_radius > base_radius:
-##                pitch_to_root_angle = pitch_to_base_angle - involute_intersect_angle(base_radius, root_radius )
-##                root1 = pitch1 - pitch_to_root_angle
-##                root2 = pitch2 + pitch_to_root_angle
-##                points_on_root = [point_on_circle (root_radius, x) for x in linspace(root2, root1+(two_pi/float(teeth)), accuracy_circular) ]
-##                p_tmp = points1 + points_on_outer_radius[1:-1] + points2[::-1] + points_on_root[1:-1] # [::-1] reverses list; [1:-1] removes first and last element
-##            else:
-##                points_on_root = [point_on_circle (root_radius, x) for x in linspace(base2, base1+(two_pi/float(teeth)), accuracy_circular) ]
-##                p_tmp = points1 + points_on_outer_radius[1:-1] + points2[::-1] + points_on_root # [::-1] reverses list
-##
-##            points.extend( p_tmp )
 
         path = points_to_svgd( points )
         bbox_center = points_to_bbox_center( points )
@@ -651,7 +619,7 @@ class Gears(inkex.Effect):
             path += (
                     "M %f,%f" % (0,r) +
                     "A  %f,%f %s %s %s %f,%f" % (r,r, 0,0,0, 0,-r) +
-                    "A  %f,%f %s %s %s %f,%f" % (r,r, 0,0,0, 0,r) 
+                    "A  %f,%f %s %s %s %f,%f" % (r,r, 0,0,0, 0,r)
                     )
         else:
             # its a ring gear
@@ -660,9 +628,9 @@ class Gears(inkex.Effect):
             path += (
                     "M %f,%f" % (0,r) +
                     "A  %f,%f %s %s %s %f,%f" % (r,r, 0,0,0, 0,-r) +
-                    "A  %f,%f %s %s %s %f,%f" % (r,r, 0,0,0, 0,r) 
+                    "A  %f,%f %s %s %s %f,%f" % (r,r, 0,0,0, 0,r)
                     )
-        
+
         # Embed gear in group to make animation easier:
         #  Translate group, Rotate path.
         t = 'translate(' + str( self.svg.namedview.center[0] ) + ',' + str( self.svg.namedview.center[1] ) + ')'
@@ -672,23 +640,21 @@ class Gears(inkex.Effect):
                       'transform':t,
                       'info':'N:'+str(teeth)+'; Pitch:'+ str(pitch) + '; Pressure Angle: '+str(angle) }
         # add the group to the current layer
-        g = etree.SubElement(self.svg.get_current_layer(), 'g', g_attribs )
+        g = inkex.etree.SubElement(self.svg.get_current_layer(), 'g', g_attribs )
 
         # Create gear path under top level group
         style = { 'stroke': path_stroke, 'fill': path_fill, 'stroke-width': path_stroke_width }
         gear_attribs = { 'style': str(inkex.Style(style)), 'd': path }
-        gear = etree.SubElement(g, inkex.addNS('path','svg'), gear_attribs )
+        gear = inkex.etree.SubElement(g, inkex.addNS('path','svg'), gear_attribs )
 
         # Add center
         if centercross:
-            style = {'stroke': path_stroke, 'fill': path_fill,
-                     'stroke-width': path_stroke_light}
+            style = { 'stroke': path_stroke, 'fill': path_fill, 'stroke-width': path_stroke_light }
             cs = str(pitch / 3)  # centercross length
             d = 'M-'+cs+',0L'+cs+',0M0,-'+cs+'L0,'+cs  # 'M-10,0L10,0M0,-10L0,10'
-            center_attribs = {inkex.addNS('label', 'inkscape'): 'Center cross',
-                              'style': str(inkex.Style(style)), 'd': d}
-            center = etree.SubElement(
-                g, inkex.addNS('path', 'svg'), center_attribs)
+            center_attribs = { inkex.addNS('label', 'inkscape'): 'Center cross',
+                               'style': str(inkex.Style(style)), 'd': d }
+            center = inkex.etree.SubElement(g, inkex.addNS('path', 'svg'), center_attribs)
 
         # Add pitch circle (for mating)
         if pitchcircle:
@@ -739,6 +705,7 @@ class Gears(inkex.Effect):
                           'Pressure Angle: %2.2f degrees' % (angle),
                           'Pitch diameter: %2.3f %s' % (pitch_radius * 2 / unit_factor, self.options.units),
                           'Outer diameter: %2.3f %s' % (outer_dia / unit_factor, self.options.units),
+                          'Root diameter:  %2.3f %s' % (root_radius * 2 / unit_factor, self.options.units),
                           'Base diameter:  %2.3f %s' % (base_radius * 2 / unit_factor, self.options.units)#,
                           #'Addendum:      %2.4f %s'  % (addendum / unit_factor, self.options.units),
                           #'Dedendum:      %2.4f %s'  % (dedendum / unit_factor, self.options.units)
