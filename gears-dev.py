@@ -55,10 +55,10 @@ two_pi = 2 * pi
 __version__ = '1.1'             # CAUTION: keep in sync with gears-dev.inx:69
 
 def uutounit(self,nn,uu):
-  try:
-    return self.svg.uutounit(nn,uu)		# inkscape 1.0 <
-  except:
-    return inkex.uutounit(nn,uu)	# inkscape 0.91 >
+    try:
+        return self.svg.uutounit(nn,uu)		# inkscape 1.0 <
+    except:
+        return inkex.uutounit(nn,uu)	# inkscape 0.91 >
 
 def linspace(a,b,n):
     """ return list of linear interp of a to b in n steps
@@ -188,63 +188,63 @@ def gear_calculations(num_teeth, circular_pitch, pressure_angle, clearance=0, ri
 
 def generate_rack_points(tooth_count, pitch, addendum, pressure_angle,
                        base_height, tab_length, clearance=0, draw_guides=False):
-        """ Return path (suitable for svg) of the Rack gear.
-            - rack gear uses straight sides
-                - involute on a circle of infinite radius is a simple linear ramp
-            - the meshing circle touches at y = 0,
-            - the highest elevation of the teeth is at y = +addendum
-            - the lowest elevation of the teeth is at y = -addendum-clearance
-            - the base_height extends downwards from the lowest elevation.
-            - we generate this middle tooth exactly centered on the y=0 line.
-              (one extra tooth on the right hand side, if number of teeth is even)
-        """
-        spacing = 0.5 * pitch # rolling one pitch distance on the spur gear pitch_diameter.
-        # roughly center rack in drawing, exact position is so that it meshes
-        # nicely with the spur gear.
-        # -0.5*spacing has a gap in the center.
-        # +0.5*spacing has a tooth in the center.
-        fudge = +0.5 * spacing
+    """ Return path (suitable for svg) of the Rack gear.
+        - rack gear uses straight sides
+            - involute on a circle of infinite radius is a simple linear ramp
+        - the meshing circle touches at y = 0,
+        - the highest elevation of the teeth is at y = +addendum
+        - the lowest elevation of the teeth is at y = -addendum-clearance
+        - the base_height extends downwards from the lowest elevation.
+        - we generate this middle tooth exactly centered on the y=0 line.
+          (one extra tooth on the right hand side, if number of teeth is even)
+    """
+    spacing = 0.5 * pitch # rolling one pitch distance on the spur gear pitch_diameter.
+    # roughly center rack in drawing, exact position is so that it meshes
+    # nicely with the spur gear.
+    # -0.5*spacing has a gap in the center.
+    # +0.5*spacing has a tooth in the center.
+    fudge = +0.5 * spacing
 
-        tas  = tan(radians(pressure_angle)) * addendum
-        tasc = tan(radians(pressure_angle)) * (addendum+clearance)
-        base_top = addendum+clearance
-        base_bot = addendum+clearance+base_height
+    tas  = tan(radians(pressure_angle)) * addendum
+    tasc = tan(radians(pressure_angle)) * (addendum+clearance)
+    base_top = addendum+clearance
+    base_bot = addendum+clearance+base_height
 
-        x_lhs = -pitch * int(0.5*tooth_count-.5) - spacing - tab_length - tasc + fudge
-        #inkex.debug("angle=%s spacing=%s"%(pressure_angle, spacing))
-        # Start with base tab on LHS
-        points = [] # make list of points
-        points.append((x_lhs, base_bot))
-        points.append((x_lhs, base_top))
-        x = x_lhs + tab_length+tasc
+    x_lhs = -pitch * int(0.5*tooth_count-.5) - spacing - tab_length - tasc + fudge
+    #inkex.debug("angle=%s spacing=%s"%(pressure_angle, spacing))
+    # Start with base tab on LHS
+    points = [] # make list of points
+    points.append((x_lhs, base_bot))
+    points.append((x_lhs, base_top))
+    x = x_lhs + tab_length+tasc
 
-        # An involute on a circle of infinite radius is a simple linear ramp.
-        # We need to add curve at bottom and use clearance.
-        for i in range(tooth_count):
-            # move along path, generating the next 'tooth'
-            # pitch line is at y=0. the left edge hits the pitch line at x
-            points.append((x-tasc, base_top))
-            points.append((x+tas, -addendum))
-            points.append((x+spacing-tas, -addendum))
-            points.append((x+spacing+tasc, base_top))
-            x += pitch
-        x -= spacing # remove last adjustment
-        # add base on RHS
-        x_rhs = x+tasc+tab_length
-        points.append((x_rhs, base_top))
-        points.append((x_rhs, base_bot))
-        # We don't close the path here. Caller does it.
-        # points.append((x_lhs, base_bot))
+    # An involute on a circle of infinite radius is a simple linear ramp.
+    # We need to add curve at bottom and use clearance.
+    for i in range(tooth_count):
+        # move along path, generating the next 'tooth'
+        # pitch line is at y=0. the left edge hits the pitch line at x
+        points.append((x-tasc, base_top))
+        points.append((x+tas, -addendum))
+        points.append((x+spacing-tas, -addendum))
+        points.append((x+spacing+tasc, base_top))
+        x += pitch
+    x -= spacing # remove last adjustment
+    # add base on RHS
+    x_rhs = x+tasc+tab_length
+    points.append((x_rhs, base_top))
+    points.append((x_rhs, base_bot))
+    # We don't close the path here. Caller does it.
+    # points.append((x_lhs, base_bot))
 
-        # Draw line representing the pitch circle of infinite diameter
-        guide_path = None
-        if draw_guides:
-            p = []
-            p.append( (x_lhs + 0.5 * tab_length, 0) )
-            p.append( (x_rhs - 0.5 * tab_length, 0) )
-            guide_path = points_to_svgd(p)
-        # return points ready for use in an SVG 'path'
-        return (points, guide_path)
+    # Draw line representing the pitch circle of infinite diameter
+    guide_path = None
+    if draw_guides:
+        p = []
+        p.append( (x_lhs + 0.5 * tab_length, 0) )
+        p.append( (x_rhs - 0.5 * tab_length, 0) )
+        guide_path = points_to_svgd(p)
+    # return points ready for use in an SVG 'path'
+    return (points, guide_path)
 
 
 def generate_spur_points(teeth, base_radius, pitch_radius, outer_radius, root_radius, accuracy_involute, accuracy_circular):
@@ -263,7 +263,7 @@ def generate_spur_points(teeth, base_radius, pitch_radius, outer_radius, root_ra
     points = []
 
     for c in centers:
-        # Angles
+    # Angles
         pitch1 = c - half_thick_angle
         base1  = pitch1 - pitch_to_base_angle
         offsetangles1 = [ base1 + x for x in angles]
@@ -401,12 +401,12 @@ class Gears(inkex.Effect):
                                      dest="accuracy", default=0,
                                      help="Accuracy of involute: automatic: 5..20 (default), best: 20(default), medium 10, low: 5; good acuracy is important with a low tooth count")
         # Clearance: Radial distance between top of tooth on one gear to bottom of gap on another.
-        self.arg_parser.add_argument("", "--clearance",
+        self.arg_parser.add_argument("--clearance",
                                      action="store", type=float,
                                      dest="clearance", default=0.0,
                                      help="Clearance between bottom of gap of this gear and top of tooth of another")
 
-        self.arg_parser.add_argument("", "--annotation",
+        self.arg_parser.add_argument("--annotation",
                                      action="store", type=inkex.Boolean,
                                      dest="annotation", default=False,
                                      help="Draw annotation text")
@@ -416,32 +416,32 @@ class Gears(inkex.Effect):
                                      dest="internal_ring", default=False,
                                      help="Ring (or Internal) gear style (default: normal spur gear)")
 
-        self.arg_parser.add_argument("", "--mount-hole",
+        self.arg_parser.add_argument("--mount-hole",
                                      action="store", type=float,
                                      dest="mount_hole", default=5,
                                      help="Mount hole diameter")
 
-        self.arg_parser.add_argument("", "--mount-diameter",
+        self.arg_parser.add_argument("--mount-diameter",
                                      action="store", type=float,
                                      dest="mount_diameter", default=15,
                                      help="Mount support diameter")
 
-        self.arg_parser.add_argument("", "--spoke-count",
+        self.arg_parser.add_argument("--spoke-count",
                                      action="store", type=int,
                                      dest="spoke_count", default=3,
                                      help="Spokes count")
 
-        self.arg_parser.add_argument("", "--spoke-width",
+        self.arg_parser.add_argument("--spoke-width",
                                      action="store", type=float,
                                      dest="spoke_width", default=5,
                                      help="Spoke width")
 
-        self.arg_parser.add_argument("", "--holes-rounding",
+        self.arg_parser.add_argument("--holes-rounding",
                                      action="store", type=float,
                                      dest="holes_rounding", default=5,
                                      help="Holes rounding")
 
-        self.arg_parser.add_argument("", "--active-tab",
+        self.arg_parser.add_argument("--active-tab",
                                      action="store", type=str,
                                      dest="active_tab", default='',
                                      help="Active tab. Not used now.")
@@ -461,22 +461,22 @@ class Gears(inkex.Effect):
                                      dest="drawrack", default=False,
                                      help="Draw rack gear instead of spur gear")
 
-        self.arg_parser.add_argument("", "--rack-teeth-length",
+        self.arg_parser.add_argument("--rack-teeth-length",
                                      action="store", type=int,
                                      dest="teeth_length", default=12,
                                      help="Length (in teeth) of rack")
 
-        self.arg_parser.add_argument("", "--rack-base-height",
+        self.arg_parser.add_argument("--rack-base-height",
                                      action="store", type=float,
                                      dest="base_height", default=8,
                                      help="Height of base of rack")
 
-        self.arg_parser.add_argument("", "--rack-base-tab",
+        self.arg_parser.add_argument("--rack-base-tab",
                                      action="store", type=float,
                                      dest="base_tab", default=14,
                                      help="Length of tabs on ends of rack")
 
-        self.arg_parser.add_argument("", "--undercut-alert",
+        self.arg_parser.add_argument("--undercut-alert",
                                      action="store", type=inkex.Boolean,
                                      dest="undercut_alert", default=False,
                                      help="Let the user confirm a warning dialog if undercut occurs. This dialog also shows helpful hints against undercut")
