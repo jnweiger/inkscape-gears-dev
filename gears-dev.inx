@@ -66,7 +66,7 @@
 		</page>
 		<page name="Usage1" _gui-text="Usage-core">
 			<_param name="gearuse" type="description" xml:space="preserve">Gears:
-Version 1.1
+Version 1.2
 
 Be sure to set the document properties to inches or mm if you want real-world dimensions.
 

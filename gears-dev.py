@@ -49,10 +49,12 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 import inkex, simplestyle
 from os import devnull # for debugging
 from math import pi, cos, sin, tan, radians, degrees, ceil, asin, acos, sqrt
+from lxml import etree
+
 two_pi = 2 * pi
 
 
-__version__ = '1.1'             # CAUTION: keep in sync with gears-dev.inx:69
+__version__ = '1.2'             # CAUTION: keep in sync with gears-dev.inx:69
 
 def uutounit(self,nn,uu):
     try:
@@ -111,11 +113,11 @@ def points_to_svgd(p):
 
 def draw_SVG_circle(parent, r, cx, cy, name, style):
     " add an SVG circle entity to parent "
-    circ_attribs = {'style': simplestyle.formatStyle(style),
+    circ_attribs = {'style': str(inkex.Style(style)),
                     'cx': str(cx), 'cy': str(cy),
                     'r': str(r),
                     inkex.addNS('label','inkscape'):name}
-    circle = inkex.etree.SubElement(parent, inkex.addNS('circle','svg'), circ_attribs )
+    circle = etree.SubElement(parent, inkex.addNS('circle','svg'), circ_attribs )
 
 
 ### Undercut support functions
@@ -211,7 +213,7 @@ def generate_rack_points(tooth_count, pitch, addendum, pressure_angle,
     base_bot = addendum+clearance+base_height
 
     x_lhs = -pitch * int(0.5*tooth_count-.5) - spacing - tab_length - tasc + fudge
-    #inkex.debug("angle=%s spacing=%s"%(pressure_angle, spacing))
+    #inkex.utils.debug("angle=%s spacing=%s"%(pressure_angle, spacing))
     # Start with base tab on LHS
     points = [] # make list of points
     points.append((x_lhs, base_bot))
@@ -358,7 +360,7 @@ class Gears(inkex.Effect):
     def __init__(self):
         inkex.Effect.__init__(self)
         # an alternate way to get debug info:
-        # could use inkex.debug(string) instead...
+        # could use inkex.utils.debug(string) instead...
         # try:
         #     self.tty = open("/dev/tty", 'w')
         # except:
@@ -495,7 +497,7 @@ class Gears(inkex.Effect):
                        'x': str(position[0]),
                        'y': str((position[1] + text_height) * 1.2)
                        }
-        line = inkex.etree.SubElement(node, inkex.addNS('text','svg'), line_attribs)
+        line = etree.SubElement(node, inkex.addNS('text','svg'), line_attribs)
         line.text = text
 
 
@@ -524,7 +526,7 @@ class Gears(inkex.Effect):
         elif self.options.system == 'MM': # module (metric)
             circular_pitch = dimension * pi
         else:
-            inkex.debug("unknown system '%s', try CP, DP, MM" % self.options.system)
+            inkex.utils.debug("unknown system '%s', try CP, DP, MM" % self.options.system)
         # circular_pitch defines the size in inches.
         # We divide the internal inch factor (px = 90dpi), to remove the inch
         # unit.
@@ -596,7 +598,7 @@ class Gears(inkex.Effect):
             # so split and make a list
             warnings.extend(msg.split("\n"))
             if self.options.undercut_alert:
-                inkex.debug(msg)
+                inkex.utils.debug(msg)
             #else:
             #    print >> self.tty, msg
 
@@ -640,12 +642,12 @@ class Gears(inkex.Effect):
                       'transform':t,
                       'info':'N:'+str(teeth)+'; Pitch:'+ str(pitch) + '; Pressure Angle: '+str(angle) }
         # add the group to the current layer
-        g = inkex.etree.SubElement(self.svg.get_current_layer(), 'g', g_attribs )
+        g = etree.SubElement(self.svg.get_current_layer(), 'g', g_attribs )
 
         # Create gear path under top level group
         style = { 'stroke': path_stroke, 'fill': path_fill, 'stroke-width': path_stroke_width }
         gear_attribs = { 'style': str(inkex.Style(style)), 'd': path }
-        gear = inkex.etree.SubElement(g, inkex.addNS('path','svg'), gear_attribs )
+        gear = etree.SubElement(g, inkex.addNS('path','svg'), gear_attribs )
 
         # Add center
         if centercross:
@@ -654,7 +656,7 @@ class Gears(inkex.Effect):
             d = 'M-'+cs+',0L'+cs+',0M0,-'+cs+'L0,'+cs  # 'M-10,0L10,0M0,-10L0,10'
             center_attribs = { inkex.addNS('label', 'inkscape'): 'Center cross',
                                'style': str(inkex.Style(style)), 'd': d }
-            center = inkex.etree.SubElement(g, inkex.addNS('path', 'svg'), center_attribs)
+            center = etree.SubElement(g, inkex.addNS('path', 'svg'), center_attribs)
 
         # Add pitch circle (for mating)
         if pitchcircle:
@@ -678,17 +680,17 @@ class Gears(inkex.Effect):
             t = 'translate(' + str( xoff ) + ',' + str( pitch_radius ) + ')'
             g_attribs = { inkex.addNS('label', 'inkscape'): 'RackGear' + str(tooth_count),
                           'transform': t }
-            rack = inkex.etree.SubElement(g, 'g', g_attribs)
+            rack = etree.SubElement(g, 'g', g_attribs)
 
             # Create SVG Path for gear
             style = {'stroke': path_stroke, 'fill': 'none', 'stroke-width': path_stroke_width }
             gear_attribs = { 'style': simplestyle.formatStyle(style), 'd': path }
-            gear = inkex.etree.SubElement(
+            gear = etree.SubElement(
                 rack, inkex.addNS('path', 'svg'), gear_attribs)
             if guide_path is not None:
                 style2 = { 'stroke': path_stroke, 'fill': 'none', 'stroke-width': path_stroke_light }
                 gear_attribs2 = { 'style': simplestyle.formatStyle(style2), 'd': guide_path }
-                gear = inkex.etree.SubElement(
+                gear = etree.SubElement(
                     rack, inkex.addNS('path', 'svg'), gear_attribs2)
 
 
